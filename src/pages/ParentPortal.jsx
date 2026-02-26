@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import {
     Lock, ArrowRight, User, ShieldCheck, CreditCard,
-    LogOut, AlertCircle, FileText, ChevronRight, Calendar
+    LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft
 } from 'lucide-react'
+import { INITIAL_STUDENTS } from '../data'
 
 /* ─── Helpers ─────────────────────────────────────────── */
 function getTuitionStatus(ultimoPago) {
@@ -37,7 +38,14 @@ function ParentLogin({ onLogin }) {
 
     const handleLogin = e => {
         e.preventDefault()
-        const students = JSON.parse(localStorage.getItem('iea_students') || '[]')
+        let students = JSON.parse(localStorage.getItem('iea_students') || '[]')
+
+        // Auto-seed for fresh vercel deployments if empty
+        if (students.length === 0) {
+            students = INITIAL_STUDENTS
+            localStorage.setItem('iea_students', JSON.stringify(students))
+        }
+
         const match = students.find(s => s.curp.toUpperCase() === curp.trim().toUpperCase())
         if (match) {
             onLogin(match)

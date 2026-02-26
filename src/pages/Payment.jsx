@@ -4,6 +4,7 @@ import {
   User, ChevronRight, ArrowLeft, ShieldCheck, Calendar, BookOpen,
   Phone, Mail, X, Send
 } from 'lucide-react'
+import { INITIAL_STUDENTS } from '../data'
 
 /* ─── Helpers (same logic as Admin) ─────────────────── */
 function getTuitionStatus(ultimoPago) {
@@ -51,8 +52,12 @@ export default function Payment() {
 
   // Load students from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('iea_students')
-    if (saved) setStudents(JSON.parse(saved))
+    let saved = localStorage.getItem('iea_students')
+    if (!saved || JSON.parse(saved).length === 0) {
+      localStorage.setItem('iea_students', JSON.stringify(INITIAL_STUDENTS))
+      saved = JSON.stringify(INITIAL_STUDENTS)
+    }
+    setStudents(JSON.parse(saved))
   }, [])
 
   // Search logic
