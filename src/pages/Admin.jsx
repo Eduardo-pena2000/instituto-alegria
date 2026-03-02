@@ -4,9 +4,10 @@ import {
   Eye, CheckCircle, AlertCircle, Clock, Filter, ChevronUp,
   ChevronDown, User, Phone, Mail, MapPin, BookOpen, Lock,
   ShieldCheck, Users, AlertTriangle, Bell, Download,
-  MessageCircle, RefreshCw, BarChart3, Calendar, Moon, Sun, Send, ArrowLeft
+  MessageCircle, BarChart3, Calendar, Moon, Sun, Send, ArrowLeft
 } from 'lucide-react'
-import { INITIAL_STUDENTS, genId, daysAgo } from '../data'
+import { getToken, setToken, clearToken, apiFetch } from '../utils/auth'
+import { API_URL } from '../config'
 
 /* ─── Helpers ─────────────────────────────────────────── */
 
@@ -35,7 +36,7 @@ const NIVEL_COLORS = {
 }
 
 const EMPTY_FORM = {
-  nombre: '', apellido: '', nivel: 'primaria', grado: '', grupo: 'A',
+  matricula: '', nombre: '', apellido: '', nivel: 'primaria', grado: '', grupo: 'A',
   fechaNacimiento: '', curp: '', nombrePadre: '', nombreMadre: '',
   telefono: '', email: '', direccion: '',
   fechaInscripcion: new Date().toISOString().split('T')[0],
@@ -45,10 +46,10 @@ const EMPTY_FORM = {
 const TUITION = { preescolar: 1800, primaria: 2200, secundaria: 2500 }
 
 function exportCSV(students) {
-  const headers = 'Nombre,Apellido,Nivel,Grado,Grupo,CURP,Padre,Madre,Teléfono,Email,Último Pago,Estado\n'
+  const headers = 'Matrícula,Nombre,Apellido,Nivel,Grado,Grupo,CURP,Padre,Madre,Teléfono,Email,Último Pago,Estado\n'
   const rows = students.map(s => {
     const st = getTuitionStatus(s.ultimoPago)
-    return `"${s.nombre}","${s.apellido}","${s.nivel}","${s.grado}","${s.grupo}","${s.curp}","${s.nombrePadre}","${s.nombreMadre}","${s.telefono}","${s.email}","${s.ultimoPago}","${st.label}"`
+    return `"${s.matricula}","${s.nombre}","${s.apellido}","${s.nivel}","${s.grado}","${s.grupo}","${s.curp}","${s.nombrePadre}","${s.nombreMadre}","${s.telefono}","${s.email}","${s.ultimoPago}","${st.label}"`
   }).join('\n')
   const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
@@ -62,7 +63,7 @@ function sendWhatsApp(student) {
   const amount = TUITION[student.nivel]
   const phone = student.telefono.replace(/\D/g, '')
   const msg = `Estimado(a) padre/madre de familia,%0A%0ALe informamos que la colegiatura de *${student.nombre} ${student.apellido}* (${student.nivel} ${student.grado}) se encuentra *${st.label}*.%0A%0AMonto: *$${amount.toLocaleString()} MXN*%0AÚltimo pago: ${fmtDate(student.ultimoPago)}%0A%0APuede realizar su pago en línea en nuestra página web.%0A%0AInstituto Educativo Alegría 📚`
-  window.open(`https://wa.me/52${phone}?text=${msg}`, '_blank')
+  window.open(`https://wa.me/52${phone}?text=${msg}`, '_blank', 'noopener,noreferrer')
 }
 
 /* ─── Login ─────────────────────────────────────────── */
@@ -72,14 +73,30 @@ function LoginScreen({ onLogin }) {
   const [err, setErr] = useState('')
   const [shake, setShake] = useState(false)
 
-  const handle = e => {
+  const [loading, setLoading] = useState(false)
+
+  const handle = async (e) => {
     e.preventDefault()
-    if (user === 'admin' && pass === 'alegria2025') {
+    setLoading(true)
+    setErr('')
+    try {
+      const res = await fetch(`${API_URL}/api/auth/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+      })
+      if (!res.ok) {
+        throw new Error('Credenciales incorrectas')
+      }
+      const { token, expiresIn } = await res.json()
+      setToken(token, expiresIn)
       onLogin()
-    } else {
+    } catch {
       setErr('Usuario o contraseña incorrectos.')
       setShake(true)
       setTimeout(() => setShake(false), 600)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -220,6 +237,8 @@ function StudentModal({ student, onSave, onClose }) {
           <div>
             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Datos del alumno</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="Matrícula" name="matricula" required placeholder="IEA-2025-0001" />
+              <div />
               <Field label="Nombre" name="nombre" required placeholder="Nombre(s)" />
               <Field label="Apellidos" name="apellido" required placeholder="Apellido paterno y materno" />
               <div>
@@ -313,6 +332,7 @@ function DetailModal({ student, onClose, onEdit, onPay }) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            <Section title="Matrícula" value={student.matricula} />
             <Section title="CURP" value={student.curp} />
             <Section title="Fecha de nacimiento" value={fmtDate(student.fechaNacimiento)} />
             <Section title="Nombre del padre" value={student.nombrePadre} />
@@ -388,11 +408,9 @@ function Toast({ message, type = 'success' }) {
 
 /* ─── Panel principal ─────────────────────────────────────────── */
 export default function Admin() {
-  const [auth, setAuth] = useState(() => localStorage.getItem('iea_admin_auth') === 'true')
-  const [students, setStudents] = useState(() => {
-    const saved = localStorage.getItem('iea_students')
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS
-  })
+  const [auth, setAuth] = useState(() => !!getToken())
+  const [students, setStudents] = useState([])
+  const [loadingData, setLoadingData] = useState(true)
 
   const [search, setSearch] = useState('')
   const [filterNivel, setFilterNivel] = useState('all')
@@ -406,20 +424,33 @@ export default function Admin() {
   const [modalDelete, setModalDelete] = useState(null)
   const [toast, setToast] = useState(null)
   const [dark, setDark] = useState(false)
-  const [tab, setTab] = useState('alumnos') // alumnos | reportes | calendario
+  const [tab, setTab] = useState('alumnos') // alumnos | reportes | calendario | notificaciones
   const [showNotif, setShowNotif] = useState(false)
-  const [paymentHistory, setPaymentHistory] = useState(() => {
-    const saved = localStorage.getItem('iea_payment_history')
-    return saved ? JSON.parse(saved) : []
-  })
+  const [paymentHistory, setPaymentHistory] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [sendingReminders, setSendingReminders] = useState(false)
 
-  /* Persist to localStorage */
+  /* Load data from API */
   useEffect(() => {
-    localStorage.setItem('iea_students', JSON.stringify(students))
-  }, [students])
-  useEffect(() => {
-    localStorage.setItem('iea_payment_history', JSON.stringify(paymentHistory))
-  }, [paymentHistory])
+    if (!auth) return
+    const load = async () => {
+      try {
+        const [studRes, payRes, notifRes] = await Promise.all([
+          apiFetch('/api/students'),
+          apiFetch('/api/payments'),
+          apiFetch('/api/notifications'),
+        ])
+        if (studRes.ok) setStudents(await studRes.json())
+        if (payRes.ok) setPaymentHistory(await payRes.json())
+        if (notifRes.ok) setNotifications(await notifRes.json())
+      } catch (err) {
+        console.error('Error loading data:', err)
+      } finally {
+        setLoadingData(false)
+      }
+    }
+    load()
+  }, [auth])
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -428,19 +459,11 @@ export default function Admin() {
 
   /* ── Auth ── */
   const login = () => {
-    localStorage.setItem('iea_admin_auth', 'true')
     setAuth(true)
   }
   const logout = () => {
-    localStorage.removeItem('iea_admin_auth')
+    clearToken()
     setAuth(false)
-  }
-  const resetDemo = () => {
-    localStorage.removeItem('iea_students')
-    localStorage.removeItem('iea_payment_history')
-    setStudents(INITIAL_STUDENTS)
-    setPaymentHistory([])
-    showToast('Datos de demo restaurados')
   }
 
   if (!auth) return <LoginScreen onLogin={login} />
@@ -458,6 +481,7 @@ export default function Admin() {
       const matchQ = !q ||
         s.nombre.toLowerCase().includes(q) ||
         s.apellido.toLowerCase().includes(q) ||
+        (s.matricula || '').toLowerCase().includes(q) ||
         s.telefono.includes(q) ||
         (s.email || '').toLowerCase().includes(q)
       const matchN = filterNivel === 'all' || s.nivel === filterNivel
@@ -490,39 +514,82 @@ export default function Admin() {
   }
 
   /* ── CRUD ── */
-  const addStudent = form => {
-    setStudents(prev => [{ ...form, id: genId() }, ...prev])
-    setModalAdd(false)
-    showToast('Alumno agregado correctamente')
-  }
-
-  const editStudent = form => {
-    setStudents(prev => prev.map(s => s.id === form.id ? form : s))
-    setModalEdit(null)
-    setModalDetail(null)
-    showToast('Datos actualizados')
-  }
-
-  const deleteStudent = id => {
-    setStudents(prev => prev.filter(s => s.id !== id))
-    setModalDelete(null)
-    setModalDetail(null)
-    showToast('Alumno eliminado', 'error')
-  }
-
-  const registerPayment = id => {
-    const today = new Date().toISOString().split('T')[0]
-    const student = students.find(s => s.id === id)
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, ultimoPago: today } : s))
-    setModalDetail(prev => prev ? { ...prev, ultimoPago: today } : null)
-    if (student) {
-      setPaymentHistory(prev => [{
-        id: genId(), studentId: id, studentName: `${student.nombre} ${student.apellido}`,
-        nivel: student.nivel, amount: TUITION[student.nivel], date: today,
-        folio: Math.random().toString(36).slice(2, 10).toUpperCase()
-      }, ...prev])
+  const addStudent = async (form) => {
+    try {
+      const res = await apiFetch('/api/students', {
+        method: 'POST',
+        body: JSON.stringify(form),
+      })
+      if (res.ok) {
+        const newStudent = await res.json()
+        setStudents(prev => [newStudent, ...prev])
+        setModalAdd(false)
+        showToast('Alumno agregado correctamente')
+      } else {
+        const err = await res.json()
+        showToast(err.error || 'Error al agregar alumno', 'error')
+      }
+    } catch {
+      showToast('Error de conexión', 'error')
     }
-    showToast('Pago registrado — colegiatura VIGENTE')
+  }
+
+  const editStudent = async (form) => {
+    try {
+      const res = await apiFetch(`/api/students/${form.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(form),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setStudents(prev => prev.map(s => s.id === updated.id ? updated : s))
+        setModalEdit(null)
+        setModalDetail(null)
+        showToast('Datos actualizados')
+      } else {
+        const err = await res.json()
+        showToast(err.error || 'Error al actualizar', 'error')
+      }
+    } catch {
+      showToast('Error de conexión', 'error')
+    }
+  }
+
+  const deleteStudent = async (id) => {
+    try {
+      const res = await apiFetch(`/api/students/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        setStudents(prev => prev.filter(s => s.id !== id))
+        setModalDelete(null)
+        setModalDetail(null)
+        showToast('Alumno eliminado', 'error')
+      } else {
+        showToast('Error al eliminar alumno', 'error')
+      }
+    } catch {
+      showToast('Error de conexión', 'error')
+    }
+  }
+
+  const registerPayment = async (id) => {
+    try {
+      const res = await apiFetch('/api/payments/record', {
+        method: 'POST',
+        body: JSON.stringify({ studentId: id }),
+      })
+      if (res.ok) {
+        const payment = await res.json()
+        const today = new Date().toISOString().split('T')[0]
+        setStudents(prev => prev.map(s => s.id === id ? { ...s, ultimoPago: today } : s))
+        setModalDetail(prev => prev ? { ...prev, ultimoPago: today } : null)
+        setPaymentHistory(prev => [payment, ...prev])
+        showToast('Pago registrado — colegiatura VIGENTE')
+      } else {
+        showToast('Error al registrar pago', 'error')
+      }
+    } catch {
+      showToast('Error de conexión', 'error')
+    }
   }
 
   /* ── Render ── */
@@ -566,10 +633,6 @@ export default function Admin() {
             <button onClick={() => setDark(!dark)} className="p-2 text-blue-200/70 hover:text-white hover:bg-white/10 rounded-lg transition-all" title={dark ? 'Modo claro' : 'Modo oscuro'}>
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
-            {/* Reset demo */}
-            <button onClick={resetDemo} className="p-2 text-blue-200/70 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Restaurar datos de demo">
-              <RefreshCw className="w-4 h-4" />
-            </button>
             {/* Export CSV */}
             <button onClick={() => { exportCSV(students); showToast('Archivo CSV descargado') }} className="hidden sm:flex items-center gap-1.5 text-blue-200/70 hover:text-white hover:bg-white/10 px-2.5 py-2 rounded-lg transition-all text-xs font-medium">
               <Download className="w-3.5 h-3.5" /> CSV
@@ -606,6 +669,7 @@ export default function Admin() {
             { id: 'alumnos', label: 'Alumnos', icon: Users },
             { id: 'reportes', label: 'Reportes', icon: BarChart3 },
             { id: 'calendario', label: 'Calendario', icon: Calendar },
+            { id: 'notificaciones', label: 'WhatsApp', icon: Bell },
           ].map(({ id, label, icon: Icon }) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${tab === id
@@ -729,7 +793,7 @@ export default function Admin() {
                         {/* Nombre */}
                         <td className="px-4 py-3">
                           <p className="font-semibold text-gray-900">{s.nombre} {s.apellido}</p>
-                          <p className="text-xs text-gray-400">{s.curp}</p>
+                          <p className="text-xs text-gray-400">{s.matricula}</p>
                         </td>
                         {/* Nivel */}
                         <td className="px-4 py-3">
@@ -945,6 +1009,115 @@ export default function Admin() {
                     </button>
                   </div>
                 ))}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ NOTIFICACIONES TAB ═══ */}
+        {tab === 'notificaciones' && (
+          <div className="space-y-6">
+            {/* Actions */}
+            <div className={`${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-2xl shadow-sm border p-6`}>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className={`font-bold text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>Recordatorios Automaticos de WhatsApp</h3>
+                  <p className={`text-xs mt-1 ${dark ? 'text-gray-400' : 'text-gray-500'}`}>Se envian automaticamente todos los dias a las 9:00 AM via Twilio</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setSendingReminders(true)
+                    try {
+                      const res = await apiFetch('/api/notifications/send-now', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+                      const data = await res.json()
+                      if (res.ok) {
+                        showToast(`Enviados: ${data.sent} | Fallidos: ${data.failed} | Omitidos: ${data.skipped}`)
+                        const notifRes = await apiFetch('/api/notifications')
+                        if (notifRes.ok) setNotifications(await notifRes.json())
+                      } else {
+                        showToast(data.error || 'Error al enviar', 'error')
+                      }
+                    } catch {
+                      showToast('Error de conexion', 'error')
+                    } finally {
+                      setSendingReminders(false)
+                    }
+                  }}
+                  disabled={sendingReminders}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+                >
+                  <Send className="w-4 h-4" />
+                  {sendingReminders ? 'Enviando...' : 'Enviar recordatorios ahora'}
+                </button>
+              </div>
+
+              {/* Pending students summary */}
+              {(() => {
+                const pending = students.filter(s => {
+                  const st = getTuitionStatus(s.ultimoPago)
+                  return st.label !== 'VIGENTE'
+                })
+                return pending.length > 0 ? (
+                  <div className={`rounded-xl p-4 ${dark ? 'bg-amber-900/20 border-amber-800' : 'bg-amber-50 border-amber-200'} border`}>
+                    <p className={`text-sm font-semibold ${dark ? 'text-amber-300' : 'text-amber-800'}`}>
+                      <AlertTriangle className="w-4 h-4 inline mr-1" />
+                      {pending.length} alumno{pending.length !== 1 ? 's' : ''} con colegiatura por vencer o vencida
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {pending.slice(0, 10).map(s => {
+                        const st = getTuitionStatus(s.ultimoPago)
+                        return (
+                          <span key={s.id} className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded-full ${st.color}`}>
+                            {s.nombre} {s.apellido} — {st.label}
+                          </span>
+                        )
+                      })}
+                      {pending.length > 10 && <span className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>+{pending.length - 10} mas</span>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`rounded-xl p-4 ${dark ? 'bg-green-900/20 border-green-800' : 'bg-green-50 border-green-200'} border`}>
+                    <p className={`text-sm font-semibold ${dark ? 'text-green-300' : 'text-green-800'}`}>
+                      <CheckCircle className="w-4 h-4 inline mr-1" />
+                      Todas las colegiaturas estan al dia
+                    </p>
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Notification history */}
+            <div className={`${dark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'} rounded-2xl shadow-sm border p-6`}>
+              <h3 className={`font-bold text-sm mb-4 ${dark ? 'text-white' : 'text-gray-900'}`}>Historial de notificaciones</h3>
+              {notifications.length === 0 ? (
+                <p className={`text-sm ${dark ? 'text-gray-400' : 'text-gray-500'}`}>No se han enviado notificaciones aun.</p>
+              ) : (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {notifications.map(n => (
+                    <div key={n.id} className={`flex items-center gap-4 p-3 rounded-xl ${dark ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'} transition-colors`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${n.status === 'sent' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                        {n.status === 'sent' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-semibold text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>
+                          {n.student?.nombre} {n.student?.apellido}
+                        </p>
+                        <p className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {n.student?.nivel} · {n.student?.grado} · Tel: {n.phone}
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center text-[10px] font-bold px-2 py-1 rounded-full ${n.type === 'vencida' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {n.type === 'vencida' ? 'VENCIDA' : 'POR VENCER'}
+                      </span>
+                      <span className={`inline-flex items-center text-[10px] font-bold px-2 py-1 rounded-full ${n.status === 'sent' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                        {n.status === 'sent' ? 'ENVIADO' : 'FALLIDO'}
+                      </span>
+                      <span className={`text-xs ${dark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {new Date(n.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

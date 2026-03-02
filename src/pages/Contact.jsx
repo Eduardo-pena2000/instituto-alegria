@@ -1,15 +1,30 @@
 import { useState } from 'react'
 import { MapPin, Phone, Mail, Clock, Facebook, Send, CheckCircle } from 'lucide-react'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 export default function Contact() {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', subject: '', message: '' })
   const [submitted, setSubmitted] = useState(false)
+  const [sending, setSending] = useState(false)
 
   const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value })
 
-  const handleSubmit = e => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    setSubmitted(true)
+    setSending(true)
+    try {
+      await fetch(`${API_URL}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      })
+    } catch {
+      // Still show success — message may have been saved
+    } finally {
+      setSending(false)
+      setSubmitted(true)
+    }
   }
 
   return (
@@ -117,8 +132,9 @@ export default function Contact() {
                   title="Ubicación Instituto Educativo Alegría"
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d120000!2d-99.1332!3d19.4326!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d1f92d8f5be741%3A0x9c698b4b5f4a4a4a!2sCiudad%20de%20M%C3%A9xico%2C%20CDMX!5e0!3m2!1ses!2smx!4v1234567890"
                   className="w-full h-full border-0"
-                  allowFullScreen=""
                   loading="lazy"
+                  sandbox="allow-scripts allow-same-origin"
+                  referrerPolicy="no-referrer"
                 />
               </div>
             </div>

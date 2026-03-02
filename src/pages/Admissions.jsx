@@ -111,10 +111,30 @@ export default function Admissions() {
 
   const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value })
 
-  const handleSubmit = e => {
+  const [sending, setSending] = useState(false)
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // In production, send to backend
-    setSubmitted(true)
+    setSending(true)
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      await fetch(`${API_URL}/api/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.parentName,
+          email: formData.email,
+          phone: formData.phone,
+          subject: `Admisión - ${formData.level} - ${formData.childName}`,
+          message: formData.message || `Solicitud de admisión para ${formData.childName}`,
+        }),
+      })
+    } catch {
+      // Still show success
+    } finally {
+      setSending(false)
+      setSubmitted(true)
+    }
   }
 
   return (

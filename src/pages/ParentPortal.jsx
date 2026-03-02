@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import {
     Lock, ArrowRight, User, ShieldCheck, CreditCard,
-    LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft
+    LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft, CheckCircle
 } from 'lucide-react'
-import { INITIAL_STUDENTS } from '../data'
+import { API_URL } from '../config'
 
 /* ─── Helpers ─────────────────────────────────────────── */
 function getTuitionStatus(ultimoPago) {
@@ -29,28 +29,71 @@ const TUITION = {
     secundaria: { label: 'Secundaria', amount: 2500, display: '$2,500.00 MXN' },
 }
 
+/* ─── Session helpers ─────────────────────────────────── */
+function getParentSession() {
+    const data = sessionStorage.getItem('iea_parent_auth')
+    if (!data) return null
+    try {
+        const { token, studentId, expiresAt } = JSON.parse(data)
+        if (Date.now() > expiresAt) {
+            sessionStorage.removeItem('iea_parent_auth')
+            return null
+        }
+        return { token, studentId }
+    } catch {
+        sessionStorage.removeItem('iea_parent_auth')
+        return null
+    }
+}
+
+function setParentSession(token, studentId) {
+    sessionStorage.setItem('iea_parent_auth', JSON.stringify({
+        token,
+        studentId,
+        expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+    }))
+}
+
+function clearParentSession() {
+    sessionStorage.removeItem('iea_parent_auth')
+}
+
 /* ─── Components ──────────────────────────────────────── */
 
 // ── Login ──
 function ParentLogin({ onLogin }) {
     const [curp, setCurp] = useState('')
     const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
 
-    const handleLogin = e => {
+    const handleLogin = async (e) => {
         e.preventDefault()
-        let students = JSON.parse(localStorage.getItem('iea_students') || '[]')
+        setLoading(true)
+        setError('')
+        try {
+            const res = await fetch(`${API_URL}/api/auth/parent/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ curp }),
+            })
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || 'CURP no encontrado')
+            }
+            const { token, student: studentInfo } = await res.json()
+            setParentSession(token, studentInfo.id)
 
-        // Auto-seed for fresh vercel deployments if empty
-        if (students.length === 0) {
-            students = INITIAL_STUDENTS
-            localStorage.setItem('iea_students', JSON.stringify(students))
-        }
-
-        const match = students.find(s => s.curp.toUpperCase() === curp.trim().toUpperCase())
-        if (match) {
-            onLogin(match)
-        } else {
-            setError('CURP no encontrado. Por favor verifica los datos o contacta a la escuela.')
+            // Fetch full student data
+            const studentRes = await fetch(`${API_URL}/api/students/${studentInfo.id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+            if (!studentRes.ok) throw new Error('Error al cargar datos del alumno')
+            const fullStudent = await studentRes.json()
+            onLogin(fullStudent, token)
+        } catch (err) {
+            setError(err.message || 'CURP no encontrado. Por favor verifica los datos o contacta a la escuela.')
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -99,11 +142,11 @@ function ParentLogin({ onLogin }) {
                             </div>
                         )}
 
-                        <button type="submit"
-                            className="w-full py-4 rounded-xl text-white font-bold text-base shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        <button type="submit" disabled={loading}
+                            className="w-full py-4 rounded-xl text-white font-bold text-base shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             style={{ background: 'linear-gradient(135deg, #1e3166 0%, #166534 100%)' }}>
-                            Acceder al portal
-                            <ArrowRight className="w-5 h-5" />
+                            {loading ? 'Verificando...' : 'Acceder al portal'}
+                            {!loading && <ArrowRight className="w-5 h-5" />}
                         </button>
                     </form>
                 </div>
@@ -125,33 +168,45 @@ function ParentLogin({ onLogin }) {
 export default function ParentPortal() {
     const [student, setStudent] = useState(null)
     const [history, setHistory] = useState([])
+    const [token, setToken] = useState(null)
 
-    // Load active student and their history
+    // Restore session from sessionStorage
     useEffect(() => {
-        const savedId = localStorage.getItem('iea_parent_session')
-        if (savedId) {
-            const all = JSON.parse(localStorage.getItem('iea_students') || '[]')
-            const s = all.find(x => x.id === savedId)
-            if (s) setStudent(s)
-            else localStorage.removeItem('iea_parent_session')
-        }
+        const session = getParentSession()
+        if (!session) return
+
+        setToken(session.token)
+        fetch(`${API_URL}/api/students/${session.studentId}`, {
+            headers: { Authorization: `Bearer ${session.token}` },
+        })
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(setStudent)
+            .catch(() => {
+                clearParentSession()
+                setToken(null)
+            })
     }, [])
 
+    // Load payment history when student is available
     useEffect(() => {
-        if (student) {
-            const allHistory = JSON.parse(localStorage.getItem('iea_payment_history') || '[]')
-            setHistory(allHistory.filter(h => h.studentId === student.id))
-        }
-    }, [student])
+        if (!student || !token) return
+        fetch(`${API_URL}/api/payments/student/${student.id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then(r => r.ok ? r.json() : [])
+            .then(setHistory)
+            .catch(() => setHistory([]))
+    }, [student, token])
 
-    const handleLogin = s => {
-        localStorage.setItem('iea_parent_session', s.id)
-        setStudent(s)
+    const handleLogin = (studentData, authToken) => {
+        setStudent(studentData)
+        setToken(authToken)
     }
 
     const logout = () => {
-        localStorage.removeItem('iea_parent_session')
+        clearParentSession()
         setStudent(null)
+        setToken(null)
     }
 
     if (!student) return <ParentLogin onLogin={handleLogin} />
@@ -172,7 +227,7 @@ export default function ParentPortal() {
                         </div>
                         <div>
                             <h1 className="font-extrabold text-gray-900 leading-tight text-lg tracking-tight">Portal de Padres</h1>
-                            <p className="text-xs text-gray-500 font-semibold tracking-wide">INSITUTO EDUCATIVO ALEGRÍA</p>
+                            <p className="text-xs text-gray-500 font-semibold tracking-wide">INSTITUTO EDUCATIVO ALEGRÍA</p>
                         </div>
                     </div>
                     <button onClick={logout} className="p-2 sm:px-4 sm:py-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-2 text-sm font-bold">
@@ -193,8 +248,6 @@ export default function ParentPortal() {
                                 <span className="bg-white/10 px-2 py-0.5 rounded-md backdrop-blur-sm border border-white/10">{tuition?.label}</span>
                                 <span>•</span>
                                 <span>{student.grado} "{student.grupo}"</span>
-                                <span>•</span>
-                                <span className="font-mono text-xs opacity-75">{student.curp}</span>
                             </div>
                         </div>
                     </div>
@@ -297,9 +350,6 @@ export default function ParentPortal() {
                                 </div>
                                 <div className="text-right pl-14 sm:pl-0">
                                     <p className="font-extrabold text-[#166534] text-lg">${h.amount?.toLocaleString()}</p>
-                                    <button className="text-xs text-[#1e3166] font-semibold hover:underline mt-0.5 flex items-center justify-end gap-1">
-                                        Ver recibo <ChevronRight className="w-3 h-3" />
-                                    </button>
                                 </div>
                             </div>
                         ))}
