@@ -45,6 +45,7 @@ if (!process.env.STRIPE_WEBHOOK_SECRET) {
 }
 
 const app = express()
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3001
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 const prisma = new PrismaClient()
