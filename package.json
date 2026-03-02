@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server/index.js",
     "railway:build": "npm install && npm run build && cd server && npm install && npx prisma generate",
-    "railway:start": "cd server && npx prisma db push --accept-data-loss || echo 'WARNING: db push failed, continuing...' && node index.js"
+    "railway:start": "cd server && (npx prisma db push --accept-data-loss || echo 'WARNING: db push failed') && node prisma/seed.js && node index.js"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^2.4.0",
