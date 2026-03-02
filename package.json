@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "server": "node server/index.js",
     "railway:build": "npm install && npm run build && cd server && npm install && npx prisma generate",
-    "railway:start": "echo 'Starting...' && echo \"DATABASE_URL set: $(test -n \"$DATABASE_URL\" && echo YES || echo NO)\" && echo \"JWT_SECRET set: $(test -n \"$JWT_SECRET\" && echo YES || echo NO)\" && echo \"STRIPE_SECRET_KEY set: $(test -n \"$STRIPE_SECRET_KEY\" && echo YES || echo NO)\" && cd server && npx prisma db push --accept-data-loss 2>&1 && echo 'DB synced' && node index.js"
+    "railway:start": "cd server && npx prisma db push --accept-data-loss || echo 'WARNING: db push failed, continuing...' && node index.js"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^2.4.0",
