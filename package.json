@@ -8,8 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "railway:build": "npm install && npm run build && cd server && npm install && npx prisma generate",
-    "railway:start": "cd server && npx prisma migrate deploy && node index.js"
+    "railway:build": "npm install && npm run build && npm install --prefix server && npx prisma generate --schema server/prisma/schema.prisma",
+    "railway:start": "npx prisma db push --schema server/prisma/schema.prisma --accept-data-loss && node server/index.js"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^2.4.0",
