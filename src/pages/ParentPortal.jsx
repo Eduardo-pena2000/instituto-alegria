@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
     Lock, ArrowRight, User, ShieldCheck, CreditCard,
     LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft, CheckCircle,
@@ -317,6 +318,9 @@ export default function ParentPortal() {
     const [history, setHistory] = useState([])
     const [token, setToken] = useState(null)
     const [portalTab, setPortalTab] = useState('cuenta')
+    const navigate = useNavigate()
+
+    const goToPay = () => navigate('/pago', { state: { student, fromPortal: true } })
 
     // Restore session from sessionStorage
     useEffect(() => {
@@ -410,8 +414,8 @@ export default function ParentPortal() {
                     ].map(({ id, label, icon: Icon }) => (
                         <button key={id} onClick={() => setPortalTab(id)}
                             className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${portalTab === id
-                                    ? 'bg-[#1e3166] text-white shadow-md'
-                                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                                ? 'bg-[#1e3166] text-white shadow-md'
+                                : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
                                 }`}>
                             <Icon className="w-4 h-4" /> <span className="hidden sm:inline">{label}</span>
                         </button>
@@ -454,9 +458,9 @@ export default function ParentPortal() {
                                         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Último pago registrado</p>
                                         <p className="text-sm font-semibold text-gray-800">{fmtDate(student.ultimoPago)}</p>
                                     </div>
-                                    <a href="/pago" className="btn-primary py-2 px-4 shadow-none hover:shadow-md text-sm">
+                                    <button onClick={goToPay} className="btn-primary py-2 px-4 shadow-none hover:shadow-md text-sm">
                                         {st.label === 'VIGENTE' ? 'Adelantar pago' : 'Pagar ahora'}
-                                    </a>
+                                    </button>
                                 </div>
                             </div>
 

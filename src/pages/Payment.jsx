@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   Search, CreditCard, Lock, CheckCircle, Shield, AlertCircle,
   User, ChevronRight, ArrowLeft, ShieldCheck, Calendar, BookOpen,
@@ -123,6 +124,15 @@ export default function Payment() {
   const [folio, setFolio] = useState('')
   const [paymentError, setPaymentError] = useState('')
   const searchRef = useRef(null)
+  const location = useLocation()
+
+  // If coming from Parent Portal, skip search/CURP steps
+  useEffect(() => {
+    if (location.state?.fromPortal && location.state?.student) {
+      setSelected(location.state.student)
+      setStep(3)
+    }
+  }, [])
 
   // Search students via API
   useEffect(() => {
