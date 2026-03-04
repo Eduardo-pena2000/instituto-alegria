@@ -7,8 +7,7 @@ import {
 import { STORE_PRODUCTS } from '../utils/storeData'
 
 /* ─── Tienda Escolar ──────────────────────────────────── */
-export default function SchoolStore({ nivel, studentName }) {
-    const [cart, setCart] = useState({})        // { productId: { ...product, qty, size? } }
+export default function SchoolStore({ nivel, studentName, cart, setCart }) {
     const [category, setCategory] = useState('uniformes')
     const [checkout, setCheckout] = useState(false)
     const [orderDone, setOrderDone] = useState(false)

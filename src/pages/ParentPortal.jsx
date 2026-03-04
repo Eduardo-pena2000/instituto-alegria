@@ -318,6 +318,7 @@ export default function ParentPortal() {
     const [history, setHistory] = useState([])
     const [token, setToken] = useState(null)
     const [portalTab, setPortalTab] = useState('cuenta')
+    const [storeCart, setStoreCart] = useState({})
     const navigate = useNavigate()
 
     const goToPay = () => navigate('/pago', { state: { student, fromPortal: true } })
@@ -532,7 +533,7 @@ export default function ParentPortal() {
 
                 {/* ── TAB: Tienda Escolar ── */}
                 {portalTab === 'tienda' && (
-                    <SchoolStore nivel={student.nivel} studentName={`${student.nombre} ${student.apellido}`} />
+                    <SchoolStore nivel={student.nivel} studentName={`${student.nombre} ${student.apellido}`} cart={storeCart} setCart={setStoreCart} />
                 )}
 
                 {/* ── TAB: Requisitos ── */}
