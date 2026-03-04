@@ -2,33 +2,12 @@ import { useState, useEffect } from 'react'
 import {
     Lock, ArrowRight, User, ShieldCheck, CreditCard,
     LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft, CheckCircle,
-    BookOpen, Shirt, ChevronDown, ChevronUp
+    BookOpen, Shirt, ChevronDown, ChevronUp, ShoppingCart
 } from 'lucide-react'
 import { API_URL } from '../config'
-
-/* ─── Helpers ─────────────────────────────────────────── */
-function getTuitionStatus(ultimoPago) {
-    if (!ultimoPago) return { label: 'VENCIDA', color: 'bg-red-100 text-red-700', dot: 'bg-red-500' }
-    const venc = new Date(ultimoPago)
-    venc.setDate(venc.getDate() + 30)
-    const hoy = new Date()
-    const diff = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24))
-    if (hoy > venc) return { label: 'VENCIDA', color: 'bg-red-100 text-red-700', dot: 'bg-red-500' }
-    if (diff <= 5) return { label: 'POR VENCER', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500' }
-    return { label: 'VIGENTE', color: 'bg-green-100 text-green-700', dot: 'bg-green-500' }
-}
-
-function fmtDate(iso) {
-    if (!iso) return '—'
-    const [y, m, d] = iso.split('-')
-    return `${d}/${m}/${y}`
-}
-
-const TUITION = {
-    preescolar: { label: 'Preescolar', amount: 1800, display: '$1,800.00 MXN' },
-    primaria: { label: 'Primaria', amount: 2200, display: '$2,200.00 MXN' },
-    secundaria: { label: 'Secundaria', amount: 2500, display: '$2,500.00 MXN' },
-}
+import { getTuitionStatus, fmtDate } from '../utils/helpers'
+import { TUITION } from '../utils/constants'
+import SchoolStore from '../components/SchoolStore'
 
 const REQUISITOS = {
     preescolar: {
@@ -337,6 +316,7 @@ export default function ParentPortal() {
     const [student, setStudent] = useState(null)
     const [history, setHistory] = useState([])
     const [token, setToken] = useState(null)
+    const [portalTab, setPortalTab] = useState('cuenta')
 
     // Restore session from sessionStorage
     useEffect(() => {
@@ -421,111 +401,140 @@ export default function ParentPortal() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Tuition Status */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col h-full">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <CreditCard className="w-4 h-4" /> Estado de cuenta
-                        </h3>
-
-                        <div className={`rounded-xl p-5 mb-6 flex items-start gap-4 ${st.label === 'VIGENTE' ? 'bg-green-50 border border-green-100' :
-                            st.label === 'POR VENCER' ? 'bg-amber-50 border border-amber-100' :
-                                'bg-red-50 border border-red-100'
-                            }`}>
-                            <span className={`w-3 h-3 mt-1.5 rounded-full ${st.dot} shrink-0`} />
-                            <div>
-                                <p className={`font-bold text-base ${st.label === 'VIGENTE' ? 'text-green-800' :
-                                    st.label === 'POR VENCER' ? 'text-amber-800' : 'text-red-800'
-                                    }`}>
-                                    {st.label === 'VIGENTE' && 'Colegiatura al corriente'}
-                                    {st.label === 'POR VENCER' && 'Próxima a vencer'}
-                                    {st.label === 'VENCIDA' && 'Colegiatura vencida'}
-                                </p>
-                                <p className={`text-sm mt-1 mb-2 ${st.label === 'VIGENTE' ? 'text-green-700' :
-                                    st.label === 'POR VENCER' ? 'text-amber-700' : 'text-red-700'
-                                    }`}>
-                                    El pago mensual de <strong>{tuition?.display}</strong> cubre hasta el <strong>{fmtDate(venc.toISOString().split('T')[0])}</strong>.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
-                            <div>
-                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Último pago registrado</p>
-                                <p className="text-sm font-semibold text-gray-800">{fmtDate(student.ultimoPago)}</p>
-                            </div>
-                            <a href="/pago" className="btn-primary py-2 px-4 shadow-none hover:shadow-md text-sm">
-                                {st.label === 'VIGENTE' ? 'Adelantar pago' : 'Pagar ahora'}
-                            </a>
-                        </div>
-                    </div>
-
-                    {/* School Info */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                            <Calendar className="w-4 h-4" /> Ciclo Escolar 2024-2025
-                        </h3>
-
-                        <div className="space-y-4 text-sm">
-                            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                                <span className="text-gray-500">Fecha de inscripción</span>
-                                <span className="font-semibold text-gray-800">{fmtDate(student.fechaInscripcion)}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                                <span className="text-gray-500">Nivel Educativo</span>
-                                <span className="font-semibold text-gray-800">{tuition?.label}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                                <span className="text-gray-500">Grado y Grupo</span>
-                                <span className="font-semibold text-gray-800">{student.grado} "{student.grupo}"</span>
-                            </div>
-                            <div className="flex justify-between items-center py-2">
-                                <span className="text-gray-500">Mensualidad</span>
-                                <span className="font-bold text-[#1e3166]">{tuition?.display}</span>
-                            </div>
-                        </div>
-                    </div>
+                {/* ── Tab Navigation ── */}
+                <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+                    {[
+                        { id: 'cuenta', label: 'Mi Cuenta', icon: CreditCard },
+                        { id: 'tienda', label: 'Tienda Escolar', icon: ShoppingCart },
+                        { id: 'requisitos', label: 'Requisitos', icon: BookOpen },
+                    ].map(({ id, label, icon: Icon }) => (
+                        <button key={id} onClick={() => setPortalTab(id)}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${portalTab === id
+                                    ? 'bg-[#1e3166] text-white shadow-md'
+                                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                                }`}>
+                            <Icon className="w-4 h-4" /> <span className="hidden sm:inline">{label}</span>
+                        </button>
+                    ))}
                 </div>
 
-                {/* Requisitos del Ciclo Escolar */}
-                <RequisitosSection nivel={student.nivel} />
+                {/* ── TAB: Mi Cuenta ── */}
+                {portalTab === 'cuenta' && (
+                    <>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Tuition Status */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col h-full">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <CreditCard className="w-4 h-4" /> Estado de cuenta
+                                </h3>
 
-                {/* Payment History */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100">
-                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                            <FileText className="w-4 h-4" /> Historial de pagos
-                        </h3>
-                    </div>
-
-                    <div className="divide-y divide-gray-50">
-                        {history.length === 0 ? (
-                            <div className="p-8 text-center text-gray-400">
-                                <FileText className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                                No hay pagos registrados en línea para este alumno.
-                            </div>
-                        ) : history.map(h => (
-                            <div key={h.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                                <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                        <CheckCircle className="w-5 h-5 text-green-600" />
-                                    </div>
+                                <div className={`rounded-xl p-5 mb-6 flex items-start gap-4 ${st.label === 'VIGENTE' ? 'bg-green-50 border border-green-100' :
+                                    st.label === 'POR VENCER' ? 'bg-amber-50 border border-amber-100' :
+                                        'bg-red-50 border border-red-100'
+                                    }`}>
+                                    <span className={`w-3 h-3 mt-1.5 rounded-full ${st.dot} shrink-0`} />
                                     <div>
-                                        <p className="font-bold text-gray-900 text-sm">Pago de Colegiatura</p>
-                                        <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                                            <span>{fmtDate(h.date)}</span>
-                                            <span>•</span>
-                                            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Folio #{h.folio}</span>
+                                        <p className={`font-bold text-base ${st.label === 'VIGENTE' ? 'text-green-800' :
+                                            st.label === 'POR VENCER' ? 'text-amber-800' : 'text-red-800'
+                                            }`}>
+                                            {st.label === 'VIGENTE' && 'Colegiatura al corriente'}
+                                            {st.label === 'POR VENCER' && 'Próxima a vencer'}
+                                            {st.label === 'VENCIDA' && 'Colegiatura vencida'}
+                                        </p>
+                                        <p className={`text-sm mt-1 mb-2 ${st.label === 'VIGENTE' ? 'text-green-700' :
+                                            st.label === 'POR VENCER' ? 'text-amber-700' : 'text-red-700'
+                                            }`}>
+                                            El pago mensual de <strong>{tuition?.display}</strong> cubre hasta el <strong>{fmtDate(venc.toISOString().split('T')[0])}</strong>.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between">
+                                    <div>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Último pago registrado</p>
+                                        <p className="text-sm font-semibold text-gray-800">{fmtDate(student.ultimoPago)}</p>
+                                    </div>
+                                    <a href="/pago" className="btn-primary py-2 px-4 shadow-none hover:shadow-md text-sm">
+                                        {st.label === 'VIGENTE' ? 'Adelantar pago' : 'Pagar ahora'}
+                                    </a>
+                                </div>
+                            </div>
+
+                            {/* School Info */}
+                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" /> Ciclo Escolar 2024-2025
+                                </h3>
+
+                                <div className="space-y-4 text-sm">
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                        <span className="text-gray-500">Fecha de inscripción</span>
+                                        <span className="font-semibold text-gray-800">{fmtDate(student.fechaInscripcion)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                        <span className="text-gray-500">Nivel Educativo</span>
+                                        <span className="font-semibold text-gray-800">{tuition?.label}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                                        <span className="text-gray-500">Grado y Grupo</span>
+                                        <span className="font-semibold text-gray-800">{student.grado} "{student.grupo}"</span>
+                                    </div>
+                                    <div className="flex justify-between items-center py-2">
+                                        <span className="text-gray-500">Mensualidad</span>
+                                        <span className="font-bold text-[#1e3166]">{tuition?.display}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Payment History */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="p-6 border-b border-gray-100">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                                    <FileText className="w-4 h-4" /> Historial de pagos
+                                </h3>
+                            </div>
+
+                            <div className="divide-y divide-gray-50">
+                                {history.length === 0 ? (
+                                    <div className="p-8 text-center text-gray-400">
+                                        <FileText className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                                        No hay pagos registrados en línea para este alumno.
+                                    </div>
+                                ) : history.map(h => (
+                                    <div key={h.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                                                <CheckCircle className="w-5 h-5 text-green-600" />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-900 text-sm">Pago de Colegiatura</p>
+                                                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                                    <span>{fmtDate(h.date)}</span>
+                                                    <span>•</span>
+                                                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Folio #{h.folio}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right pl-14 sm:pl-0">
+                                            <p className="font-extrabold text-[#166534] text-lg">${h.amount?.toLocaleString()}</p>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="text-right pl-14 sm:pl-0">
-                                    <p className="font-extrabold text-[#166534] text-lg">${h.amount?.toLocaleString()}</p>
-                                </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
-                </div>
+                        </div>
+                    </>
+                )}
+
+                {/* ── TAB: Tienda Escolar ── */}
+                {portalTab === 'tienda' && (
+                    <SchoolStore nivel={student.nivel} studentName={`${student.nombre} ${student.apellido}`} />
+                )}
+
+                {/* ── TAB: Requisitos ── */}
+                {portalTab === 'requisitos' && (
+                    <RequisitosSection nivel={student.nivel} />
+                )}
 
             </main>
         </div>

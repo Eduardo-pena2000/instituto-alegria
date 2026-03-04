@@ -8,32 +8,10 @@ import {
 } from 'lucide-react'
 import { getToken, setToken, clearToken, apiFetch } from '../utils/auth'
 import { API_URL } from '../config'
+import { getTuitionStatus, fmtDate } from '../utils/helpers'
+import { TUITION, NIVEL_LABELS, NIVEL_COLORS } from '../utils/constants'
 
-/* ─── Helpers ─────────────────────────────────────────── */
-
-function getTuitionStatus(ultimoPago) {
-  if (!ultimoPago) return { label: 'VENCIDA', color: 'bg-red-100 text-red-700', dot: 'bg-red-500', order: 2 }
-  const venc = new Date(ultimoPago)
-  venc.setDate(venc.getDate() + 30)
-  const hoy = new Date()
-  const diff = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24))
-  if (hoy > venc) return { label: 'VENCIDA', color: 'bg-red-100 text-red-700', dot: 'bg-red-500', order: 2 }
-  if (diff <= 5) return { label: 'POR VENCER', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', order: 1 }
-  return { label: 'VIGENTE', color: 'bg-green-100 text-green-700', dot: 'bg-green-500', order: 0 }
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}
-
-const NIVEL_LABELS = { preescolar: 'Preescolar', primaria: 'Primaria', secundaria: 'Secundaria' }
-const NIVEL_COLORS = {
-  preescolar: 'bg-pink-100 text-pink-700',
-  primaria: 'bg-blue-100 text-blue-700',
-  secundaria: 'bg-emerald-100 text-emerald-700',
-}
+/* ─── Local Constants ─────────────────────────────────── */
 
 const EMPTY_FORM = {
   matricula: '', nombre: '', apellido: '', nivel: 'primaria', grado: '', grupo: 'A',
@@ -42,8 +20,6 @@ const EMPTY_FORM = {
   fechaInscripcion: new Date().toISOString().split('T')[0],
   ultimoPago: new Date().toISOString().split('T')[0],
 }
-
-const TUITION = { preescolar: 1800, primaria: 2200, secundaria: 2500 }
 
 function exportCSV(students) {
   const headers = 'Matrícula,Nombre,Apellido,Nivel,Grado,Grupo,CURP,Padre,Madre,Teléfono,Email,Último Pago,Estado\n'
@@ -60,7 +36,7 @@ function exportCSV(students) {
 
 function sendWhatsApp(student) {
   const st = getTuitionStatus(student.ultimoPago)
-  const amount = TUITION[student.nivel]
+  const amount = TUITION[student.nivel]?.amount || 0
   const phone = student.telefono.replace(/\D/g, '')
   const msg = `Estimado(a) padre/madre de familia,%0A%0ALe informamos que la colegiatura de *${student.nombre} ${student.apellido}* (${student.nivel} ${student.grado}) se encuentra *${st.label}*.%0A%0AMonto: *$${amount.toLocaleString()} MXN*%0AÚltimo pago: ${fmtDate(student.ultimoPago)}%0A%0APuede realizar su pago en línea en nuestra página web.%0A%0AInstituto Educativo Alegría 📚`
   window.open(`https://wa.me/52${phone}?text=${msg}`, '_blank', 'noopener,noreferrer')
@@ -940,14 +916,14 @@ export default function Admin() {
                     return (
                       <div key={n} className="flex justify-between items-center">
                         <span className={`text-sm capitalize ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{n} ({count})</span>
-                        <span className={`font-bold text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>${(TUITION[n] * count).toLocaleString()}</span>
+                        <span className={`font-bold text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>${((TUITION[n]?.amount || 0) * count).toLocaleString()}</span>
                       </div>
                     )
                   })}
                   <hr className={dark ? 'border-gray-700' : 'border-gray-100'} />
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-sm text-[#166534]">Total mensual</span>
-                    <span className="font-extrabold text-lg text-[#166534]">${students.reduce((s, st) => s + TUITION[st.nivel], 0).toLocaleString()}</span>
+                    <span className="font-extrabold text-lg text-[#166534]">${students.reduce((s, st) => s + (TUITION[st.nivel]?.amount || 0), 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -1003,7 +979,7 @@ export default function Admin() {
                     <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${s.st.color}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${s.st.dot}`} />{s.st.label}
                     </span>
-                    <span className={`text-sm font-bold ${dark ? 'text-gray-300' : 'text-gray-700'}`}>${TUITION[s.nivel]?.toLocaleString()}</span>
+                    <span className={`text-sm font-bold ${dark ? 'text-gray-300' : 'text-gray-700'}`}>${TUITION[s.nivel]?.amount?.toLocaleString()}</span>
                     <button onClick={() => sendWhatsApp(s)} title="WhatsApp" className="p-1.5 hover:bg-green-50 text-gray-400 hover:text-green-600 rounded-lg transition-colors">
                       <MessageCircle className="w-4 h-4" />
                     </button>

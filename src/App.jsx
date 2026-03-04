@@ -11,6 +11,7 @@ import Payment from './pages/Payment'
 import Contact from './pages/Contact'
 import Admin from './pages/Admin'
 import ParentPortal from './pages/ParentPortal'
+import NotFound from './pages/NotFound'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -37,7 +38,7 @@ export default function App() {
           <Route path="/contacto" element={<Contact />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/portal" element={<ParentPortal />} />
-          <Route path="*" element={<Home />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       {!isHiddenNav && <Footer />}

@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { randomUUID } from 'crypto'
+import Stripe from 'stripe'
 import { authenticateAdmin, authenticateParent } from '../middleware/auth.js'
 
 const router = Router()
 const prisma = new PrismaClient()
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 const TUITION = {
   preescolar: 1800,
@@ -45,11 +47,34 @@ router.get('/student/:studentId', authenticateParent, async (req, res) => {
 })
 
 // POST /api/payments/record — called after successful Stripe payment
+// Requires a valid stripePaymentId to prevent fake payment creation
 router.post('/record', async (req, res) => {
   try {
     const { studentId, stripePaymentId } = req.body
     if (!studentId) {
       return res.status(400).json({ error: 'studentId es requerido' })
+    }
+    if (!stripePaymentId) {
+      return res.status(400).json({ error: 'stripePaymentId es requerido' })
+    }
+
+    // Verify the payment actually succeeded in Stripe
+    try {
+      const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentId)
+      if (paymentIntent.status !== 'succeeded') {
+        return res.status(400).json({ error: 'El pago no ha sido completado en Stripe' })
+      }
+    } catch (stripeErr) {
+      console.error('Stripe verification error:', stripeErr.message)
+      return res.status(400).json({ error: 'No se pudo verificar el pago con Stripe' })
+    }
+
+    // Check for duplicate payment recording
+    const existing = await prisma.payment.findFirst({
+      where: { stripePaymentId },
+    })
+    if (existing) {
+      return res.json(existing) // Already recorded, return the existing one
     }
 
     const student = await prisma.student.findUnique({ where: { id: studentId } })

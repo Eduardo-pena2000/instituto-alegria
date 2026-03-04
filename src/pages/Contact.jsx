@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MapPin, Phone, Mail, Clock, Facebook, Send, CheckCircle } from 'lucide-react'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+import { API_URL } from '../config'
 
 export default function Contact() {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', subject: '', message: '' })

@@ -7,38 +7,10 @@ import {
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import { API_URL, STRIPE_PK } from '../config'
+import { getTuitionStatus, fmtDate } from '../utils/helpers'
+import { TUITION, NIVEL_COLORS } from '../utils/constants'
 
 const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null
-
-/* ─── Helpers (same logic as Admin) ─────────────────── */
-function getTuitionStatus(ultimoPago) {
-  if (!ultimoPago) return { label: 'VENCIDA', color: 'bg-red-100 text-red-700', dot: 'bg-red-500', order: 2 }
-  const venc = new Date(ultimoPago)
-  venc.setDate(venc.getDate() + 30)
-  const hoy = new Date()
-  const diff = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24))
-  if (hoy > venc) return { label: 'VENCIDA', color: 'bg-red-100 text-red-700', dot: 'bg-red-500', order: 2 }
-  if (diff <= 5) return { label: 'POR VENCER', color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', order: 1 }
-  return { label: 'VIGENTE', color: 'bg-green-100 text-green-700', dot: 'bg-green-500', order: 0 }
-}
-
-function fmtDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}
-
-const TUITION = {
-  preescolar: { label: 'Preescolar', amount: 1800, display: '$1,800.00 MXN' },
-  primaria: { label: 'Primaria', amount: 2200, display: '$2,200.00 MXN' },
-  secundaria: { label: 'Secundaria', amount: 2500, display: '$2,500.00 MXN' },
-}
-
-const NIVEL_COLORS = {
-  preescolar: 'bg-pink-100 text-pink-700',
-  primaria: 'bg-blue-100 text-blue-700',
-  secundaria: 'bg-emerald-100 text-emerald-700',
-}
 
 /* ─── Stripe Checkout Form ──────────────────────────── */
 function CheckoutForm({ selected, tuition, onSuccess, onBack }) {
@@ -161,7 +133,7 @@ export default function Payment() {
     })
       .then(r => r.json())
       .then(setResults)
-      .catch(() => {})
+      .catch(() => { })
     return () => controller.abort()
   }, [query])
 
