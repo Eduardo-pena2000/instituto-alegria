@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import {
     Lock, ArrowRight, User, ShieldCheck, CreditCard,
-    LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft, CheckCircle
+    LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft, CheckCircle,
+    BookOpen, Shirt, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { API_URL } from '../config'
 
@@ -27,6 +28,62 @@ const TUITION = {
     preescolar: { label: 'Preescolar', amount: 1800, display: '$1,800.00 MXN' },
     primaria: { label: 'Primaria', amount: 2200, display: '$2,200.00 MXN' },
     secundaria: { label: 'Secundaria', amount: 2500, display: '$2,500.00 MXN' },
+}
+
+const REQUISITOS = {
+    preescolar: {
+        uniformes: [
+            { item: 'Uniforme diario (playera polo blanca con logo, pantalón azul marino)', cantidad: 2 },
+            { item: 'Uniforme de educación física (pants y playera deportiva con logo)', cantidad: 1 },
+            { item: 'Bata escolar (para actividades artísticas)', cantidad: 1 },
+            { item: 'Zapatos negros escolares', cantidad: 1 },
+            { item: 'Tenis blancos (para educación física)', cantidad: 1 },
+        ],
+        libros: [
+            { item: 'Libro de trabajo "Mis primeras letras" (proporcionado por la SEP)', nota: 'Gratuito' },
+            { item: 'Libro de trabajo "Pensamiento matemático"', nota: 'Gratuito' },
+            { item: 'Cuaderno de trabajo Alegría (se adquiere en la escuela)', nota: '$150 MXN' },
+            { item: 'Block de hojas blancas tamaño carta', cantidad: 2 },
+            { item: 'Caja de crayones gruesos (12 piezas)', cantidad: 2 },
+            { item: 'Plastilina (paquete de 10 barras)', cantidad: 1 },
+        ],
+    },
+    primaria: {
+        uniformes: [
+            { item: 'Uniforme diario (playera polo blanca con logo, pantalón azul marino)', cantidad: 2 },
+            { item: 'Uniforme de educación física (pants y playera deportiva con logo)', cantidad: 1 },
+            { item: 'Suéter azul marino con logo', cantidad: 1 },
+            { item: 'Zapatos negros escolares', cantidad: 1 },
+            { item: 'Tenis blancos (para educación física)', cantidad: 1 },
+        ],
+        libros: [
+            { item: 'Libros de texto gratuitos de la SEP (se entregan en la escuela)', nota: 'Gratuito' },
+            { item: 'Cuaderno profesional cuadrícula chica (Matemáticas)', cantidad: 2 },
+            { item: 'Cuaderno profesional raya (Español)', cantidad: 2 },
+            { item: 'Cuaderno profesional cuadrícula grande (Ciencias)', cantidad: 1 },
+            { item: 'Atlas de México (4° a 6°)', cantidad: 1, nota: 'Solo 4°-6°' },
+            { item: 'Diccionario escolar español', cantidad: 1 },
+            { item: 'Cuaderno de trabajo de inglés Alegría (se adquiere en la escuela)', nota: '$250 MXN' },
+        ],
+    },
+    secundaria: {
+        uniformes: [
+            { item: 'Uniforme diario (camisa blanca con logo, pantalón gris)', cantidad: 2 },
+            { item: 'Uniforme de educación física (pants y playera deportiva con logo)', cantidad: 1 },
+            { item: 'Suéter gris con logo', cantidad: 1 },
+            { item: 'Zapatos negros escolares', cantidad: 1 },
+            { item: 'Tenis blancos (para educación física)', cantidad: 1 },
+        ],
+        libros: [
+            { item: 'Libros de texto gratuitos de la SEP (se entregan en la escuela)', nota: 'Gratuito' },
+            { item: 'Cuaderno profesional cuadrícula chica (Matemáticas)', cantidad: 2 },
+            { item: 'Cuaderno profesional raya (Español, Historia, FCyE)', cantidad: 3 },
+            { item: 'Cuaderno profesional cuadrícula grande (Ciencias / Física / Química)', cantidad: 2 },
+            { item: 'Calculadora científica', cantidad: 1 },
+            { item: 'Diccionario español e inglés-español', cantidad: 1 },
+            { item: 'Cuaderno de trabajo de inglés Alegría (se adquiere en la escuela)', nota: '$300 MXN' },
+        ],
+    },
 }
 
 /* ─── Session helpers ─────────────────────────────────── */
@@ -159,6 +216,117 @@ function ParentLogin({ onLogin }) {
                         Instituto Educativo Alegría · Valores para VIVIR
                     </p>
                 </div>
+            </div>
+        </div>
+    )
+}
+
+// ── Requisitos del Ciclo Escolar ──
+function RequisitosSection({ nivel }) {
+    const [openSection, setOpenSection] = useState(null)
+    const req = REQUISITOS[nivel]
+    if (!req) return null
+
+    const toggle = (section) => setOpenSection(openSection === section ? null : section)
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" /> Requisitos del Ciclo Escolar 2025-2026
+                </h3>
+                <p className="text-sm text-gray-500 mt-2">
+                    Lista de uniformes y materiales para <strong>{TUITION[nivel]?.label}</strong>
+                </p>
+            </div>
+
+            {/* Uniformes */}
+            <div className="border-b border-gray-50">
+                <button onClick={() => toggle('uniformes')}
+                    className="w-full p-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                            <Shirt className="w-5 h-5 text-[#1e3166]" />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-gray-900 text-sm">Uniformes</p>
+                            <p className="text-xs text-gray-500">{req.uniformes.length} artículos requeridos</p>
+                        </div>
+                    </div>
+                    {openSection === 'uniformes'
+                        ? <ChevronUp className="w-5 h-5 text-gray-400" />
+                        : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                </button>
+                {openSection === 'uniformes' && (
+                    <div className="px-5 pb-5">
+                        <div className="bg-blue-50/50 rounded-xl border border-blue-100/50 divide-y divide-blue-100/50">
+                            {req.uniformes.map((u, i) => (
+                                <div key={i} className="px-4 py-3 flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-2 min-w-0">
+                                        <CheckCircle className="w-4 h-4 text-[#1e3166] shrink-0 mt-0.5" />
+                                        <span className="text-sm text-gray-700">{u.item}</span>
+                                    </div>
+                                    {u.cantidad && (
+                                        <span className="text-xs font-bold text-[#1e3166] bg-blue-100 px-2 py-0.5 rounded-full shrink-0">
+                                            x{u.cantidad}
+                                        </span>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-3 px-1">
+                            Los uniformes con logo se adquieren en la tienda escolar o con proveedores autorizados.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Libros y materiales */}
+            <div>
+                <button onClick={() => toggle('libros')}
+                    className="w-full p-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                            <BookOpen className="w-5 h-5 text-[#166534]" />
+                        </div>
+                        <div className="text-left">
+                            <p className="font-bold text-gray-900 text-sm">Libros y materiales</p>
+                            <p className="text-xs text-gray-500">{req.libros.length} artículos requeridos</p>
+                        </div>
+                    </div>
+                    {openSection === 'libros'
+                        ? <ChevronUp className="w-5 h-5 text-gray-400" />
+                        : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                </button>
+                {openSection === 'libros' && (
+                    <div className="px-5 pb-5">
+                        <div className="bg-green-50/50 rounded-xl border border-green-100/50 divide-y divide-green-100/50">
+                            {req.libros.map((l, i) => (
+                                <div key={i} className="px-4 py-3 flex items-start justify-between gap-3">
+                                    <div className="flex items-start gap-2 min-w-0">
+                                        <CheckCircle className="w-4 h-4 text-[#166534] shrink-0 mt-0.5" />
+                                        <span className="text-sm text-gray-700">{l.item}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {l.nota && (
+                                            <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                                                {l.nota}
+                                            </span>
+                                        )}
+                                        {l.cantidad && (
+                                            <span className="text-xs font-bold text-[#166534] bg-green-100 px-2 py-0.5 rounded-full">
+                                                x{l.cantidad}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-3 px-1">
+                            Los libros de la SEP se entregan gratuitamente al inicio del ciclo escolar.
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     )
@@ -318,6 +486,9 @@ export default function ParentPortal() {
                         </div>
                     </div>
                 </div>
+
+                {/* Requisitos del Ciclo Escolar */}
+                <RequisitosSection nivel={student.nivel} />
 
                 {/* Payment History */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
