@@ -55,7 +55,20 @@ const PORT = process.env.PORT || 3001
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
 // ── Security middleware ────────────────────────────────────
-app.use(helmet())
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://*.stripe.com", "*"], // Allow external images
+      frameSrc: ["'self'", "https://js.stripe.com", "https://hooks.stripe.com"],
+      connectSrc: ["'self'", "https://api.stripe.com", "ws:", "wss:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Needed for external images in some cases
+}))
 
 // CORS — environment-driven origins
 const ALLOWED_ORIGINS = process.env.CORS_ORIGINS
