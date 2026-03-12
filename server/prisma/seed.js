@@ -1,13 +1,6 @@
-import { PrismaClient } from '@prisma/client'
+import prisma from '../lib/prisma.js'
 import bcrypt from 'bcryptjs'
-
-const prisma = new PrismaClient()
-
-function daysAgo(n) {
-  const d = new Date()
-  d.setDate(d.getDate() - n)
-  return d.toISOString().split('T')[0]
-}
+import { daysAgo } from '../shared/helpers.js'
 
 const STUDENTS = [
   { matricula: 'IEA-2024-0001', nombre: 'Sofía', apellido: 'Ramírez Torres', nivel: 'preescolar', grado: 'Kínder 1', grupo: 'A', fechaNacimiento: '2022-04-10', curp: 'RATS220410MDFMRA09', nombrePadre: 'Arturo Ramírez', nombreMadre: 'Laura Torres', telefono: '(55) 3812-4561', email: 'ramirez.familia@email.com', direccion: 'Av. Juárez 45, Col. Centro', fechaInscripcion: '2024-08-01', ultimoPago: daysAgo(5) },

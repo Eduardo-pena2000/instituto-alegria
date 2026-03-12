@@ -549,7 +549,7 @@ export default function Admin() {
 
   const registerPayment = async (id) => {
     try {
-      const res = await apiFetch('/api/payments/record', {
+      const res = await apiFetch('/api/payments/admin-record', {
         method: 'POST',
         body: JSON.stringify({ studentId: id }),
       })

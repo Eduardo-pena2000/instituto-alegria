@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Phone, Mail, Clock, Facebook, Send, CheckCircle } from 'lucide-react'
+import { MapPin, Phone, Mail, Clock, Facebook, Send, CheckCircle, AlertCircle } from 'lucide-react'
 
 import { API_URL } from '../config'
 
@@ -7,23 +7,29 @@ export default function Contact() {
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', subject: '', message: '' })
   const [submitted, setSubmitted] = useState(false)
   const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = e => setFormData({ ...formData, [e.target.name]: e.target.value })
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSending(true)
+    setError('')
     try {
-      await fetch(`${API_URL}/api/contact`, {
+      const res = await fetch(`${API_URL}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       })
-    } catch {
-      // Still show success — message may have been saved
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || 'Error al enviar el mensaje')
+      }
+      setSubmitted(true)
+    } catch (err) {
+      setError(err.message || 'No se pudo enviar el mensaje. Verifica tu conexión e intenta de nuevo.')
     } finally {
       setSending(false)
-      setSubmitted(true)
     }
   }
 
@@ -200,7 +206,13 @@ export default function Contact() {
                       className="input-field resize-none" placeholder="Escribe tu mensaje aquí..."
                     />
                   </div>
-                  <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
+                  {error && (
+                    <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                      <p>{error}</p>
+                    </div>
+                  )}
+                  <button type="submit" disabled={sending} className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50">
                     <Send className="w-4 h-4" />
                     Enviar mensaje
                   </button>

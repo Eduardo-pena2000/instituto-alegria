@@ -12,7 +12,8 @@ import rateLimit from 'express-rate-limit'
 import Stripe from 'stripe'
 import { config } from 'dotenv'
 import { z } from 'zod'
-import { PrismaClient } from '@prisma/client'
+import prisma from './lib/prisma.js'
+import { TUITION_CENTS } from './shared/tuition.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -23,6 +24,7 @@ import studentRoutes from './routes/students.js'
 import paymentRoutes from './routes/payments.js'
 import contactRoutes from './routes/contact.js'
 import notificationRoutes from './routes/notifications.js'
+import storeRoutes from './routes/store.js'
 import { checkAndSendReminders } from './jobs/tuitionReminders.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -32,7 +34,7 @@ const __dirname = path.dirname(__filename)
 config({ path: path.join(__dirname, '..', '.env') })
 
 // ── Fail-fast: validate required env vars ──────────────────
-const REQUIRED_ENV = ['STRIPE_SECRET_KEY', 'JWT_SECRET', 'DATABASE_URL']
+const REQUIRED_ENV = ['JWT_SECRET', 'DATABASE_URL']
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`FATAL: ${key} environment variable is not set`)
@@ -40,6 +42,9 @@ for (const key of REQUIRED_ENV) {
   }
 }
 
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn('WARNING: STRIPE_SECRET_KEY not set — payment endpoints will not work')
+}
 if (!process.env.STRIPE_WEBHOOK_SECRET) {
   console.warn('WARNING: STRIPE_WEBHOOK_SECRET not set — webhooks will fail signature verification')
 }
@@ -47,8 +52,7 @@ if (!process.env.STRIPE_WEBHOOK_SECRET) {
 const app = express()
 app.set('trust proxy', 1)
 const PORT = process.env.PORT || 3001
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
-const prisma = new PrismaClient()
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
 // ── Security middleware ────────────────────────────────────
 app.use(helmet())
@@ -80,14 +84,20 @@ const authLimiter = rateLimit({
   message: { error: 'Demasiados intentos de login. Intenta de nuevo en 15 minutos.' },
 })
 
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas búsquedas. Intenta de nuevo en un minuto.' },
+})
+
 // ── Webhook route FIRST (needs raw body, before express.json) ──
-const TUITION_AMOUNTS = {
-  preescolar: 180000,
-  primaria: 220000,
-  secundaria: 250000,
-}
 
 app.post('/api/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe no configurado' })
+  }
   const sig = req.headers['stripe-signature']
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
@@ -156,6 +166,7 @@ app.use('/api/', (req, res, next) => {
 
 // ── Rate limiters ──────────────────────────────────────────
 app.use('/api/auth/', authLimiter)
+app.use('/api/students/search', searchLimiter)
 app.use('/api/', apiLimiter)
 
 // ── Routes ─────────────────────────────────────────────────
@@ -164,6 +175,7 @@ app.use('/api/students', studentRoutes)
 app.use('/api/payments', paymentRoutes)
 app.use('/api/contact', contactRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/store', storeRoutes)
 
 // Stripe PaymentIntent creation
 const PaymentIntentSchema = z.object({
@@ -175,6 +187,10 @@ const PaymentIntentSchema = z.object({
 })
 
 app.post('/api/create-payment-intent', async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe no está configurado. Agrega STRIPE_SECRET_KEY al .env' })
+  }
+
   const parsed = PaymentIntentSchema.safeParse(req.body)
   if (!parsed.success) {
     return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
@@ -184,7 +200,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
 
   try {
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: TUITION_AMOUNTS[level],
+      amount: TUITION_CENTS[level],
       currency: 'mxn',
       metadata: {
         studentName,
@@ -219,6 +235,12 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(clientBuildPath, 'index.html'))
 })
 
+// ── Global error handler ────────────────────────────────────
+app.use((err, req, res, _next) => {
+  console.error('Unhandled error:', err.stack || err)
+  res.status(500).json({ error: 'Error interno del servidor' })
+})
+
 // ── WhatsApp reminder cron job ──────────────────────────────
 if (process.env.TWILIO_ACCOUNT_SID) {
   cron.schedule('0 9 * * *', () => {
@@ -243,7 +265,8 @@ app.listen(PORT, () => {
   console.log(`  POST /api/students/verify-curp`)
   console.log(`  POST /api/create-payment-intent`)
   console.log(`  GET  /api/payments`)
-  console.log(`  POST /api/payments/record`)
+  console.log(`  POST /api/payments/record (auth)`)
+  console.log(`  POST /api/payments/admin-record (admin)`)
   console.log(`  POST /api/contact`)
   console.log(`  POST /api/webhook`)
   console.log(`  GET  /api/notifications`)

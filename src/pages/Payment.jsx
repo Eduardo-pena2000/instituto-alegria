@@ -19,14 +19,23 @@ function CheckoutForm({ selected, tuition, onSuccess, onBack }) {
   const elements = useElements()
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState(null)
+  const [elementReady, setElementReady] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!stripe || !elements) return
+    if (!stripe || !elements || !elementReady) return
     setProcessing(true)
     setError(null)
 
-    const { error: submitError, paymentIntent } = await stripe.confirmPayment({
+    // First, validate the Payment Element
+    const { error: submitError } = await elements.submit()
+    if (submitError) {
+      setError(submitError.message)
+      setProcessing(false)
+      return
+    }
+
+    const { error: confirmError, paymentIntent } = await stripe.confirmPayment({
       elements,
       confirmParams: {
         return_url: `${window.location.origin}/pago?success=true`,
@@ -34,8 +43,8 @@ function CheckoutForm({ selected, tuition, onSuccess, onBack }) {
       redirect: 'if_required',
     })
 
-    if (submitError) {
-      setError(submitError.message)
+    if (confirmError) {
+      setError(confirmError.message)
       setProcessing(false)
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
       // Record payment in our database
@@ -55,59 +64,64 @@ function CheckoutForm({ selected, tuition, onSuccess, onBack }) {
     }
   }
 
-  if (processing) {
-    return (
-      <div className="py-16 text-center">
-        <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1e3166, #166534)' }}>
-          <svg className="w-8 h-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
-            <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" className="opacity-75" />
-          </svg>
-        </div>
-        <h3 className="text-xl font-bold text-gray-900 mb-2">Procesando tu pago...</h3>
-        <p className="text-sm text-gray-400">No cierres esta ventana. Esto tomará unos segundos.</p>
-        <div className="w-48 h-1.5 bg-gray-100 rounded-full mx-auto mt-6 overflow-hidden">
-          <div className="h-full rounded-full animate-pulse" style={{ background: 'linear-gradient(90deg, #1e3166, #166534)', width: '70%' }} />
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <PaymentElement options={{
-        layout: 'tabs',
-        defaultValues: {
-          billingDetails: {
-            email: selected.email || '',
-          }
-        }
-      }} />
-
-      {error && (
-        <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
-          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+    <div className="relative">
+      {/* Processing overlay — shown on top, but form stays mounted underneath */}
+      {processing && (
+        <div className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center rounded-xl py-16">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1e3166, #166534)' }}>
+            <svg className="w-8 h-8 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25" />
+              <path d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" fill="currentColor" className="opacity-75" />
+            </svg>
+          </div>
+          <h3 className="text-xl font-bold text-gray-900 mb-2">Procesando tu pago...</h3>
+          <p className="text-sm text-gray-400">No cierres esta ventana. Esto tomará unos segundos.</p>
+          <div className="w-48 h-1.5 bg-gray-100 rounded-full mx-auto mt-6 overflow-hidden">
+            <div className="h-full rounded-full animate-pulse" style={{ background: 'linear-gradient(90deg, #1e3166, #166534)', width: '70%' }} />
+          </div>
         </div>
       )}
 
-      <button type="submit" disabled={!stripe || !elements}
-        className="w-full py-4 rounded-xl text-white font-bold text-base shadow-lg hover:shadow-xl transform hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        style={{ background: 'linear-gradient(135deg, #166534 0%, #22a84a 100%)' }}>
-        <Lock className="w-5 h-5" />
-        Pagar {tuition?.display}
-      </button>
+      {/* Form — always mounted so PaymentElement stays in the DOM */}
+      <form onSubmit={handleSubmit} className={`space-y-5 ${processing ? 'invisible' : ''}`}>
+        <PaymentElement
+          onReady={() => setElementReady(true)}
+          options={{
+            layout: 'tabs',
+            defaultValues: {
+              billingDetails: {
+                email: selected.email || '',
+              }
+            }
+          }}
+        />
 
-      <button type="button" onClick={onBack}
-        className="w-full py-2.5 text-sm text-gray-400 hover:text-[#1e3166] font-medium transition-colors">
-        Volver al resumen
-      </button>
+        {error && (
+          <div className="flex items-center gap-2 p-3.5 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          </div>
+        )}
 
-      <div className="flex items-center justify-center gap-4 text-xs text-gray-300 pt-1">
-        <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Pago seguro con Stripe</span>
-        <span>•</span>
-        <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Cifrado PCI DSS</span>
-      </div>
-    </form>
+        <button type="submit" disabled={!stripe || !elements || !elementReady || processing}
+          className="w-full py-4 rounded-xl text-white font-bold text-base shadow-lg hover:shadow-xl transform hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{ background: 'linear-gradient(135deg, #166534 0%, #22a84a 100%)' }}>
+          <Lock className="w-5 h-5" />
+          Pagar {tuition?.display}
+        </button>
+
+        <button type="button" onClick={onBack}
+          className="w-full py-2.5 text-sm text-gray-400 hover:text-[#1e3166] font-medium transition-colors">
+          Volver al resumen
+        </button>
+
+        <div className="flex items-center justify-center gap-4 text-xs text-gray-300 pt-1">
+          <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Pago seguro con Stripe</span>
+          <span>•</span>
+          <span className="flex items-center gap-1"><Lock className="w-3 h-3" /> Cifrado PCI DSS</span>
+        </div>
+      </form>
+    </div>
   )
 }
 

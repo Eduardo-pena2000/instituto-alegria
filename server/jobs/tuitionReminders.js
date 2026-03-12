@@ -1,7 +1,6 @@
-import { PrismaClient } from '@prisma/client'
-import { sendWhatsAppReminder, getTuitionStatus } from '../services/whatsapp.js'
-
-const prisma = new PrismaClient()
+import prisma from '../lib/prisma.js'
+import { sendWhatsAppReminder } from '../services/whatsapp.js'
+import { getTuitionStatus } from '../shared/helpers.js'
 
 export async function checkAndSendReminders() {
   console.log(`[${new Date().toISOString()}] Checking tuition reminders...`)

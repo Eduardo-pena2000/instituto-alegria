@@ -1,9 +1,8 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
 import { z } from 'zod'
+import prisma from '../lib/prisma.js'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 const ContactSchema = z.object({
   name: z.string().min(1).max(200),

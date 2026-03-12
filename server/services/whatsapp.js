@@ -1,23 +1,6 @@
 import twilio from 'twilio'
-
-const TUITION = { preescolar: 1800, primaria: 2200, secundaria: 2500 }
-
-function fmtDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = iso.split('-')
-  return `${d}/${m}/${y}`
-}
-
-function getTuitionStatus(ultimoPago) {
-  if (!ultimoPago) return { label: 'VENCIDA', type: 'vencida' }
-  const venc = new Date(ultimoPago)
-  venc.setDate(venc.getDate() + 30)
-  const hoy = new Date()
-  const diff = Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24))
-  if (hoy > venc) return { label: 'VENCIDA', type: 'vencida' }
-  if (diff <= 5) return { label: 'POR VENCER', type: 'por_vencer' }
-  return { label: 'VIGENTE', type: 'vigente' }
-}
+import { TUITION } from '../shared/tuition.js'
+import { fmtDate } from '../shared/helpers.js'
 
 let client = null
 
@@ -83,4 +66,4 @@ async function sendWhatsAppReminder(student, type) {
   }
 }
 
-export { sendWhatsAppReminder, getTuitionStatus, TUITION }
+export { sendWhatsAppReminder }

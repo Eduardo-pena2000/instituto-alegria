@@ -1,11 +1,11 @@
 import { Router } from 'express'
-import { PrismaClient } from '@prisma/client'
+import prisma from '../lib/prisma.js'
 import { authenticateAdmin } from '../middleware/auth.js'
-import { sendWhatsAppReminder, getTuitionStatus } from '../services/whatsapp.js'
+import { sendWhatsAppReminder } from '../services/whatsapp.js'
+import { getTuitionStatus } from '../shared/helpers.js'
 import { checkAndSendReminders } from '../jobs/tuitionReminders.js'
 
 const router = Router()
-const prisma = new PrismaClient()
 
 // All routes require admin auth
 router.use(authenticateAdmin)

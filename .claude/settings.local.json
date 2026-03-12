@@ -4,7 +4,10 @@
       "WebFetch(domain:www.facebook.com)",
       "Bash(npm install)",
       "Bash(npm run build)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npx prisma generate)",
+      "Bash(openssl rand -base64 48)",
+      "Bash(railway login)"
     ]
   }
 }

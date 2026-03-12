@@ -8,63 +8,8 @@ import {
 import { API_URL } from '../config'
 import { getTuitionStatus, fmtDate } from '../utils/helpers'
 import { TUITION } from '../utils/constants'
+import { REQUISITOS } from '../utils/requisitosData'
 import SchoolStore from '../components/SchoolStore'
-
-const REQUISITOS = {
-    preescolar: {
-        uniformes: [
-            { item: 'Uniforme diario (playera polo blanca con logo, pantalón azul marino)', cantidad: 2 },
-            { item: 'Uniforme de educación física (pants y playera deportiva con logo)', cantidad: 1 },
-            { item: 'Bata escolar (para actividades artísticas)', cantidad: 1 },
-            { item: 'Zapatos negros escolares', cantidad: 1 },
-            { item: 'Tenis blancos (para educación física)', cantidad: 1 },
-        ],
-        libros: [
-            { item: 'Libro de trabajo "Mis primeras letras" (proporcionado por la SEP)', nota: 'Gratuito' },
-            { item: 'Libro de trabajo "Pensamiento matemático"', nota: 'Gratuito' },
-            { item: 'Cuaderno de trabajo Alegría (se adquiere en la escuela)', nota: '$150 MXN' },
-            { item: 'Block de hojas blancas tamaño carta', cantidad: 2 },
-            { item: 'Caja de crayones gruesos (12 piezas)', cantidad: 2 },
-            { item: 'Plastilina (paquete de 10 barras)', cantidad: 1 },
-        ],
-    },
-    primaria: {
-        uniformes: [
-            { item: 'Uniforme diario (playera polo blanca con logo, pantalón azul marino)', cantidad: 2 },
-            { item: 'Uniforme de educación física (pants y playera deportiva con logo)', cantidad: 1 },
-            { item: 'Suéter azul marino con logo', cantidad: 1 },
-            { item: 'Zapatos negros escolares', cantidad: 1 },
-            { item: 'Tenis blancos (para educación física)', cantidad: 1 },
-        ],
-        libros: [
-            { item: 'Libros de texto gratuitos de la SEP (se entregan en la escuela)', nota: 'Gratuito' },
-            { item: 'Cuaderno profesional cuadrícula chica (Matemáticas)', cantidad: 2 },
-            { item: 'Cuaderno profesional raya (Español)', cantidad: 2 },
-            { item: 'Cuaderno profesional cuadrícula grande (Ciencias)', cantidad: 1 },
-            { item: 'Atlas de México (4° a 6°)', cantidad: 1, nota: 'Solo 4°-6°' },
-            { item: 'Diccionario escolar español', cantidad: 1 },
-            { item: 'Cuaderno de trabajo de inglés Alegría (se adquiere en la escuela)', nota: '$250 MXN' },
-        ],
-    },
-    secundaria: {
-        uniformes: [
-            { item: 'Uniforme diario (camisa blanca con logo, pantalón gris)', cantidad: 2 },
-            { item: 'Uniforme de educación física (pants y playera deportiva con logo)', cantidad: 1 },
-            { item: 'Suéter gris con logo', cantidad: 1 },
-            { item: 'Zapatos negros escolares', cantidad: 1 },
-            { item: 'Tenis blancos (para educación física)', cantidad: 1 },
-        ],
-        libros: [
-            { item: 'Libros de texto gratuitos de la SEP (se entregan en la escuela)', nota: 'Gratuito' },
-            { item: 'Cuaderno profesional cuadrícula chica (Matemáticas)', cantidad: 2 },
-            { item: 'Cuaderno profesional raya (Español, Historia, FCyE)', cantidad: 3 },
-            { item: 'Cuaderno profesional cuadrícula grande (Ciencias / Física / Química)', cantidad: 2 },
-            { item: 'Calculadora científica', cantidad: 1 },
-            { item: 'Diccionario español e inglés-español', cantidad: 1 },
-            { item: 'Cuaderno de trabajo de inglés Alegría (se adquiere en la escuela)', nota: '$300 MXN' },
-        ],
-    },
-}
 
 /* ─── Session helpers ─────────────────────────────────── */
 function getParentSession() {
@@ -504,25 +449,39 @@ export default function ParentPortal() {
                                 {history.length === 0 ? (
                                     <div className="p-8 text-center text-gray-400">
                                         <FileText className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                                        No hay pagos registrados en línea para este alumno.
+                                        No hay movimientos registrados en línea para este alumno.
                                     </div>
                                 ) : history.map(h => (
                                     <div key={h.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
                                         <div className="flex items-start gap-4">
-                                            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                                <CheckCircle className="w-5 h-5 text-green-600" />
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${h.type === 'store' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                                                {h.type === 'store' ? (
+                                                    <ShoppingCart className="w-5 h-5 text-blue-600" />
+                                                ) : (
+                                                    <CheckCircle className="w-5 h-5 text-green-600" />
+                                                )}
                                             </div>
                                             <div>
-                                                <p className="font-bold text-gray-900 text-sm">Pago de Colegiatura</p>
-                                                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                                                <p className="font-bold text-gray-900 text-sm">{h.title || 'Pago'}</p>
+                                                <div className="flex items-center flex-wrap gap-2 mt-1 text-xs text-gray-500">
                                                     <span>{fmtDate(h.date)}</span>
                                                     <span>•</span>
                                                     <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Folio #{h.folio}</span>
+                                                    {h.type === 'store' && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                                                {h.status === 'delivered' ? 'Entregado' : 'Pendiente de entrega'}
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="text-right pl-14 sm:pl-0">
-                                            <p className="font-extrabold text-[#166534] text-lg">${h.amount?.toLocaleString()}</p>
+                                            <p className={`font-extrabold text-lg ${h.type === 'store' ? 'text-[#1e3166]' : 'text-[#166534]'}`}>
+                                                ${(h.displayAmount || h.amount || 0).toLocaleString()}
+                                            </p>
                                         </div>
                                     </div>
                                 ))}
@@ -533,7 +492,7 @@ export default function ParentPortal() {
 
                 {/* ── TAB: Tienda Escolar ── */}
                 {portalTab === 'tienda' && (
-                    <SchoolStore nivel={student.nivel} studentName={`${student.nombre} ${student.apellido}`} cart={storeCart} setCart={setStoreCart} />
+                    <SchoolStore nivel={student.nivel} studentName={`${student.nombre} ${student.apellido}`} studentId={student.id} cart={storeCart} setCart={setStoreCart} />
                 )}
 
                 {/* ── TAB: Requisitos ── */}
