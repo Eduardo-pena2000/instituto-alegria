@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SEO from '../components/SEO'
 import { Link } from 'react-router-dom'
 import {
   CheckCircle, FileText, Calendar, Users, Phone,
@@ -139,6 +140,10 @@ export default function Admissions() {
 
   return (
     <div className="pt-16 md:pt-20">
+      <SEO 
+        title="Admisiones — Instituto Educativo Alegría" 
+        description="Conoce nuestro proceso de admisión, requisitos y agenda un recorrido. ¡Únete a la familia del Instituto Educativo Alegría!" 
+      />
 
       {/* Hero */}
       <section className="relative py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0e1630 0%, #1e3166 55%, #0b2614 100%)' }}>

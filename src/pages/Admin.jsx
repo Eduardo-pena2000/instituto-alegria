@@ -126,7 +126,7 @@ function LoginScreen({ onLogin }) {
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-[#1e3166] transition-colors" />
                 <input type="text" value={user} onChange={e => { setUser(e.target.value); setErr('') }}
                   className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-[#1e3166] focus:bg-white text-sm font-medium text-gray-800 outline-none transition-all placeholder:text-gray-300"
-                  placeholder="admin" autoComplete="username" />
+                  placeholder="Usuario" autoComplete="off" />
               </div>
             </div>
             <div>
@@ -135,7 +135,7 @@ function LoginScreen({ onLogin }) {
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300 group-focus-within:text-[#1e3166] transition-colors" />
                 <input type="password" value={pass} onChange={e => { setPass(e.target.value); setErr('') }}
                   className="w-full pl-11 pr-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-[#1e3166] focus:bg-white text-sm font-medium text-gray-800 outline-none transition-all placeholder:text-gray-300"
-                  placeholder="••••••••" autoComplete="current-password" />
+                  placeholder="Contraseña" autoComplete="new-password" />
               </div>
             </div>
             {err && (

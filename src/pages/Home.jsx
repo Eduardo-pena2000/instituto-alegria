@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import SEO from '../components/SEO'
 import {
   GraduationCap, Users, Award, BookOpen, Star,
   ChevronRight, CreditCard, Phone, ArrowRight,
@@ -73,6 +74,10 @@ const values = [
 export default function Home() {
   return (
     <div className="pt-16 md:pt-20">
+      <SEO 
+        title="Inicio — Instituto Educativo Alegría" 
+        description="Educación bilingüe de calidad en Preescolar, Primaria y Secundaria. Formando el futuro con alegría y compromiso." 
+      />
 
       {/* ── Hero ─────────────────────────────────── */}
       <section className="relative min-h-[90vh] flex items-center overflow-hidden">

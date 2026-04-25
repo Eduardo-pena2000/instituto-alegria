@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SEO from '../components/SEO'
 import { X, ZoomIn } from 'lucide-react'
 
 const categories = ['Todas', 'Aulas', 'Laboratorios', 'Deportes', 'Biblioteca', 'Arte', 'Exterior']
@@ -28,6 +29,10 @@ export default function Gallery() {
 
   return (
     <div className="pt-16 md:pt-20">
+      <SEO 
+        title="Instalaciones — Instituto Educativo Alegría" 
+        description="Explora nuestras instalaciones diseñadas para el aprendizaje, el deporte y el desarrollo creativo de nuestros alumnos." 
+      />
 
       {/* Hero */}
       <section className="relative py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0e1630 0%, #1e3166 55%, #0b2614 100%)' }}>

@@ -113,6 +113,22 @@ export default function Navbar() {
                 {label}
               </NavLink>
             ))}
+            <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-white/10">
+              <Link
+                to="/portal"
+                className="flex items-center justify-center gap-2 bg-[#1e3a8a] hover:bg-[#1e40af] text-white font-semibold text-sm py-2.5 px-4 rounded-xl transition-colors"
+              >
+                <User className="w-4 h-4" />
+                Padres
+              </Link>
+              <Link
+                to="/admin"
+                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold text-sm py-2.5 px-4 rounded-xl transition-colors"
+              >
+                <Lock className="w-4 h-4" />
+                Admin
+              </Link>
+            </div>
             <Link
               to="/pago"
               className="flex items-center justify-center gap-2 bg-[#166534] hover:bg-[#15742f] text-white font-semibold text-sm py-3 px-4 rounded-xl w-full mt-3 transition-colors"

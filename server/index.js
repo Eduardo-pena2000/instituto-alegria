@@ -211,6 +211,9 @@ app.post('/api/create-payment-intent', async (req, res) => {
 
   const { level, studentName, grade, parentEmail, studentId } = parsed.data
 
+    // Generate an idempotency key to prevent double charges if the user double-clicks
+    const idempotencyKey = `${studentId}-${TUITION_CENTS[level]}-${new Date().toISOString().slice(0, 13)}`
+
   try {
     const paymentIntent = await stripe.paymentIntents.create({
       amount: TUITION_CENTS[level],
@@ -224,6 +227,8 @@ app.post('/api/create-payment-intent', async (req, res) => {
       },
       receipt_email: parentEmail || undefined,
       description: `Colegiatura mensual — ${studentName} — ${grade} (${level})`,
+    }, {
+      idempotencyKey
     })
 
     res.json({ clientSecret: paymentIntent.client_secret })

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import SEO from '../components/SEO'
 import { MapPin, Phone, Mail, Clock, Facebook, Send, CheckCircle, AlertCircle } from 'lucide-react'
 
 import { API_URL } from '../config'
@@ -35,6 +36,10 @@ export default function Contact() {
 
   return (
     <div className="pt-16 md:pt-20">
+      <SEO 
+        title="Contacto — Instituto Educativo Alegría" 
+        description="Ponte en contacto con nosotros. Encuentra nuestra ubicación, teléfonos y horarios de atención. Estamos para servirte." 
+      />
 
       {/* Hero */}
       <section className="relative py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0e1630 0%, #1e3166 55%, #0b2614 100%)' }}>

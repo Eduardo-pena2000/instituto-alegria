@@ -14,23 +14,10 @@ import Admin from './pages/Admin'
 import ParentPortal from './pages/ParentPortal'
 import NotFound from './pages/NotFound'
 
-const PAGE_TITLES = {
-  '/': 'Inicio — Instituto Educativo Alegría',
-  '/nosotros': 'Nosotros — Instituto Educativo Alegría',
-  '/niveles': 'Niveles Educativos — Instituto Educativo Alegría',
-  '/galeria': 'Instalaciones — Instituto Educativo Alegría',
-  '/admisiones': 'Admisiones — Instituto Educativo Alegría',
-  '/pago': 'Pagar Colegiatura — Instituto Educativo Alegría',
-  '/contacto': 'Contacto — Instituto Educativo Alegría',
-  '/admin': 'Panel Administrativo — IEA',
-  '/portal': 'Portal de Padres — IEA',
-}
-
 function ScrollToTop() {
   const { pathname } = useLocation()
   useEffect(() => {
     window.scrollTo(0, 0)
-    document.title = PAGE_TITLES[pathname] || 'Instituto Educativo Alegría Bilingüe'
   }, [pathname])
   return null
 }

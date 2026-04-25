@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import SEO from '../components/SEO'
 import { Target, Eye, Heart, Users, Award, BookOpen, Leaf, Shield, Star, ArrowRight, GraduationCap } from 'lucide-react'
 
 const team = [
@@ -50,6 +51,10 @@ const timeline = [
 export default function About() {
   return (
     <div className="pt-16 md:pt-20">
+      <SEO 
+        title="Nosotros — Instituto Educativo Alegría" 
+        description="Conoce nuestra historia, misión, visión y al equipo docente que hace posible la educación de excelencia en el Instituto Educativo Alegría." 
+      />
 
       {/* Hero */}
       <section className="relative py-24 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0e1630 0%, #1e3166 55%, #0b2614 100%)' }}>

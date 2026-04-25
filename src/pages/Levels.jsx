@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import SEO from '../components/SEO'
 import { Clock, Users, BookOpen, CheckCircle, ArrowRight, Music, Palette, Trophy, Dumbbell } from 'lucide-react'
 
 const levels = [
@@ -114,6 +115,10 @@ const extras = [
 export default function Levels() {
   return (
     <div className="pt-16 md:pt-20">
+      <SEO 
+        title="Niveles Educativos — Instituto Educativo Alegría" 
+        description="Descubre nuestros programas de Preescolar, Primaria y Secundaria. Educación integral adaptada a cada etapa del desarrollo de tu hijo." 
+      />
 
       {/* Hero */}
       <section className="relative py-20 overflow-hidden" style={{ background: 'linear-gradient(135deg, #0e1630 0%, #1e3166 55%, #0b2614 100%)' }}>
