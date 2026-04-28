@@ -22,7 +22,7 @@ export const STORE_PRODUCTS = {
         ],
         libros: [
             { id: 'pre-l1', name: 'Cuaderno de trabajo Alegría', price: 150, image: '📓' },
-            { id: 'pre-l2', name: 'Block de hojas blancas tamaño carta', price: 45, image: '📄' },
+            { id: 'pre-l2', name: 'Articulo de prueba (Block de hojas)', price: 10, image: '📄' },
             { id: 'pre-l3', name: 'Caja de crayones gruesos (12 pzas)', price: 65, image: '🖍️' },
             { id: 'pre-l4', name: 'Plastilina (paquete 10 barras)', price: 55, image: '🎨' },
             { id: 'pre-l5', name: 'Paquete de materiales básicos', price: 180, image: '✂️', description: 'Tijeras, pegamento, colores, etc.' },
