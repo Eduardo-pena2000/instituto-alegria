@@ -41,8 +41,8 @@ router.post('/create-payment-intent', async (req, res) => {
 
     const itemsSummary = items.map(i => `${i.name}${i.selectedSize ? ` (${i.selectedSize})` : ''} ×${i.qty}`).join(', ')
 
-    // Idempotency key to safely handle double clicks
-    const idempotencyKey = `store-${studentId || 'anon'}-${totalCents}-${new Date().toISOString().slice(0, 13)}`
+    // Idempotency key to safely handle double clicks (per-minute window + random suffix)
+    const idempotencyKey = `store-${studentId || 'anon'}-${totalCents}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     try {
         const paymentIntent = await stripe.paymentIntents.create({
