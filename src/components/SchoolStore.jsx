@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
     ShoppingCart, Plus, Minus, X, CreditCard, CheckCircle,
     Shirt, BookOpen, ChevronRight, Tag, Package, ArrowLeft,
-    ShieldCheck, Trash2, Lock, Shield, AlertCircle
+    ShieldCheck, Trash2, Lock, Shield, AlertCircle, Mail
 } from 'lucide-react'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
@@ -130,6 +130,7 @@ export default function SchoolStore({ nivel, studentName, studentId, cart, setCa
     const [paymentStep, setPaymentStep] = useState('summary') // 'summary' | 'stripe'
     const [paymentError, setPaymentError] = useState('')
     const [isStartingPayment, setIsStartingPayment] = useState(false)
+    const [receiptEmail, setReceiptEmail] = useState('')
 
     const products = STORE_PRODUCTS[nivel] || STORE_PRODUCTS.primaria
     const currentProducts = products[category] || []
@@ -191,7 +192,7 @@ export default function SchoolStore({ nivel, studentName, studentId, cart, setCa
             const res = await fetch(`${API_URL}/api/store/create-payment-intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items, studentName, studentId: studentId || '' }),
+                body: JSON.stringify({ items, studentName, studentId: studentId || '', receiptEmail: receiptEmail.trim() || undefined }),
             })
 
             if (!res.ok) {
@@ -335,6 +336,24 @@ export default function SchoolStore({ nivel, studentName, studentId, cart, setCa
                                 <span className="font-bold text-gray-900">Total a pagar</span>
                                 <span className="text-2xl font-extrabold text-[#166534]">${cartTotal.toLocaleString()} MXN</span>
                             </div>
+                        </div>
+
+                        {/* Email para recibo */}
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                                📧 Correo para recibo (opcional)
+                            </label>
+                            <div className="relative">
+                                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                    type="email"
+                                    value={receiptEmail}
+                                    onChange={e => setReceiptEmail(e.target.value)}
+                                    placeholder="correo@ejemplo.com"
+                                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-[#1e3166] focus:bg-white text-sm text-gray-800 outline-none transition-all placeholder:text-gray-300"
+                                />
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1.5 ml-1">Te enviaremos un recibo de compra a este correo</p>
                         </div>
 
                         {paymentError && (

@@ -18,6 +18,7 @@ const StoreCheckoutSchema = z.object({
     items: z.array(CartItemSchema).min(1).max(50),
     studentName: z.string().min(1).max(200),
     studentId: z.string().max(100).optional().default(''),
+    receiptEmail: z.string().email().max(200).optional(),
 })
 
 // POST /api/store/create-payment-intent
@@ -31,7 +32,7 @@ router.post('/create-payment-intent', async (req, res) => {
         return res.status(400).json({ error: 'Datos del carrito inválidos', details: parsed.error.flatten() })
     }
 
-    const { items, studentName, studentId } = parsed.data
+    const { items, studentName, studentId, receiptEmail } = parsed.data
 
     // Calculate total on the server (never trust the client)
     const totalCents = items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.qty, 0)
@@ -48,6 +49,7 @@ router.post('/create-payment-intent', async (req, res) => {
         const paymentIntent = await stripe.paymentIntents.create({
             amount: totalCents,
             currency: 'mxn',
+            ...(receiptEmail && { receipt_email: receiptEmail }),
             metadata: {
                 type: 'store_purchase',
                 studentName,
