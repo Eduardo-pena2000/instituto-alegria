@@ -86,6 +86,11 @@ router.post('/record', async (req, res) => {
       if (paymentIntent.status !== 'succeeded') {
         return res.status(400).json({ error: 'El pago no ha sido completado en Stripe' })
       }
+
+      // Verify the payment is actually for tuition
+      if (paymentIntent.metadata.concept !== 'Colegiatura mensual') {
+        return res.status(400).json({ error: 'El pago proporcionado no es válido para colegiatura' })
+      }
     } catch (stripeErr) {
       console.error('Stripe verification error:', stripeErr.message)
       return res.status(400).json({ error: 'No se pudo verificar el pago con Stripe' })

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import Stripe from 'stripe'
 import { z } from 'zod'
 import { authenticateAdmin } from '../middleware/auth.js'
+import { STORE_PRODUCTS } from '../../src/utils/storeData.js'
 
 const router = Router()
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
@@ -34,13 +35,37 @@ router.post('/create-payment-intent', async (req, res) => {
 
     const { items, studentName, studentId, receiptEmail } = parsed.data
 
-    // Calculate total on the server (never trust the client)
-    const totalCents = items.reduce((sum, item) => sum + Math.round(item.price * 100) * item.qty, 0)
+    // Find real prices from server-side STORE_PRODUCTS
+    const getProductPrice = (productId) => {
+        for (const level of Object.values(STORE_PRODUCTS)) {
+            for (const category of Object.values(level)) {
+                for (const product of category) {
+                    if (product.id === productId) return product.price
+                }
+            }
+        }
+        return null
+    }
+
+    // Calculate total on the server using verified prices
+    let totalCents = 0
+    const verifiedItems = []
+
+    for (const item of items) {
+        const realPrice = getProductPrice(item.id)
+        if (realPrice === null) {
+            return res.status(400).json({ error: `Producto no encontrado: ${item.name}` })
+        }
+        totalCents += Math.round(realPrice * 100) * item.qty
+        // Use real price for metadata
+        verifiedItems.push(`${item.name}${item.selectedSize ? ` (${item.selectedSize})` : ''} ×${item.qty}`)
+    }
+
     if (totalCents < 1000) { // Minimum $10 MXN
         return res.status(400).json({ error: 'El monto mínimo de compra es $10 MXN' })
     }
 
-    const itemsSummary = items.map(i => `${i.name}${i.selectedSize ? ` (${i.selectedSize})` : ''} ×${i.qty}`).join(', ')
+    const itemsSummary = verifiedItems.join(', ')
 
     // Idempotency key to safely handle double clicks (per-minute window + random suffix)
     const idempotencyKey = `store-${studentId || 'anon'}-${totalCents}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -81,11 +106,22 @@ router.post('/record-order', async (req, res) => {
             return res.status(400).json({ error: 'Faltan datos requeridos (studentId, items, totalCents, stripePaymentId)' })
         }
 
-        // Verify with Stripe that the payment succeeded
+        // Verify with Stripe that the payment succeeded and matches the order
         try {
             const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentId)
+            
             if (paymentIntent.status !== 'succeeded') {
                 return res.status(400).json({ error: 'El pago no ha sido completado en Stripe' })
+            }
+
+            // Verify the PaymentIntent is actually for a store purchase
+            if (paymentIntent.metadata.type !== 'store_purchase') {
+                return res.status(400).json({ error: 'El pago proporcionado no es válido para la tienda' })
+            }
+
+            // Verify the amount matches what we expect
+            if (paymentIntent.amount !== totalCents) {
+                return res.status(400).json({ error: 'El monto del pago no coincide con el total del pedido' })
             }
         } catch (stripeErr) {
             console.error('Stripe verification error:', stripeErr.message)

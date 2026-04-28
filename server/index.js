@@ -129,34 +129,53 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), (req, res) =
 
   if (event.type === 'payment_intent.succeeded') {
     const intent = event.data.object
-    console.log(`Pago exitoso: ${intent.metadata.studentName} — ${intent.amount / 100} MXN`)
+    
+    // Only process tuition payments here. Store purchases are handled by the store routes.
+    if (intent.metadata.concept === 'Colegiatura mensual') {
+      console.log(`Pago de colegiatura exitoso: ${intent.metadata.studentName} — ${intent.amount / 100} MXN`)
 
-    // Record payment in database
-    const studentId = intent.metadata.studentId
-    if (studentId) {
-      prisma.student.findUnique({ where: { id: studentId } })
-        .then(student => {
-          if (!student) return
-          const today = new Date().toISOString().split('T')[0]
-          return Promise.all([
-            prisma.payment.create({
-              data: {
-                studentId: student.id,
-                studentName: `${student.nombre} ${student.apellido}`,
-                nivel: student.nivel,
-                amount: intent.amount / 100,
-                date: today,
-                folio: randomUUID().slice(0, 8).toUpperCase(),
-                stripePaymentId: intent.id,
-              },
-            }),
-            prisma.student.update({
-              where: { id: studentId },
-              data: { ultimoPago: today },
-            }),
-          ])
-        })
-        .catch(err => console.error('Webhook DB error:', err))
+      // Record payment in database
+      const studentId = intent.metadata.studentId
+      if (studentId) {
+        prisma.student.findUnique({ where: { id: studentId } })
+          .then(async student => {
+            if (!student) return
+
+            // Prevent duplicate records if frontend /record hit first
+            const existing = await prisma.payment.findFirst({
+              where: { stripePaymentId: intent.id }
+            })
+            if (existing) {
+               console.log(`Webhook: Pago de colegiatura ya registrado (stripePaymentId: ${intent.id})`)
+               return
+            }
+
+            const today = new Date().toISOString().split('T')[0]
+            await Promise.all([
+              prisma.payment.create({
+                data: {
+                  studentId: student.id,
+                  studentName: `${student.nombre} ${student.apellido}`,
+                  nivel: student.nivel,
+                  amount: intent.amount / 100,
+                  date: today,
+                  folio: randomUUID().slice(0, 8).toUpperCase(),
+                  stripePaymentId: intent.id,
+                },
+              }),
+              prisma.student.update({
+                where: { id: studentId },
+                data: { ultimoPago: today },
+              }),
+            ])
+            console.log(`Webhook: Pago de colegiatura registrado exitosamente`)
+          })
+          .catch(err => console.error('Webhook DB error:', err))
+      }
+    } else if (intent.metadata.type === 'store_purchase') {
+       // We can optionally handle store purchases here in the future if needed,
+       // but for now the frontend `/record-order` handles it reliably.
+       console.log(`Webhook: Compra de tienda ignorada (manejada por /record-order): ${intent.id}`)
     }
   }
 
