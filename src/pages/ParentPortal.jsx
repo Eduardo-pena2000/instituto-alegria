@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
     Lock, ArrowRight, User, ShieldCheck, CreditCard,
     LogOut, AlertCircle, FileText, ChevronRight, Calendar, ArrowLeft, CheckCircle,
-    BookOpen, Shirt, ChevronDown, ChevronUp, ShoppingCart
+    BookOpen, Shirt, ChevronDown, ChevronUp, ShoppingCart, Package
 } from 'lucide-react'
 import { API_URL } from '../config'
 import { getTuitionStatus, fmtDate } from '../utils/helpers'
@@ -256,6 +256,101 @@ function RequisitosSection({ nivel }) {
         </div>
     )
 }
+// ── History Row (expandable for store orders) ──
+function HistoryRow({ h }) {
+    const [expanded, setExpanded] = useState(false)
+    const isStore = h.type === 'store'
+    const hasItems = isStore && Array.isArray(h.items) && h.items.length > 0
+
+    return (
+        <div className={`transition-colors ${expanded ? 'bg-blue-50/30' : 'hover:bg-gray-50'}`}>
+            <div
+                className={`p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${hasItems ? 'cursor-pointer' : ''}`}
+                onClick={() => hasItems && setExpanded(!expanded)}
+            >
+                <div className="flex items-start gap-4">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isStore ? 'bg-blue-100' : 'bg-green-100'}`}>
+                        {isStore ? (
+                            <ShoppingCart className="w-5 h-5 text-blue-600" />
+                        ) : (
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                        )}
+                    </div>
+                    <div>
+                        <p className="font-bold text-gray-900 text-sm">{h.title || 'Pago'}</p>
+                        <div className="flex items-center flex-wrap gap-2 mt-1 text-xs text-gray-500">
+                            <span>{fmtDate(h.date)}</span>
+                            <span>•</span>
+                            <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Folio #{h.folio}</span>
+                            {isStore && (
+                                <>
+                                    <span>•</span>
+                                    <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                        {h.status === 'delivered' ? 'Entregado' : 'Pendiente de entrega'}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                        {hasItems && (
+                            <button className="flex items-center gap-1 mt-2 text-xs font-semibold text-[#1e3166] hover:text-[#166534] transition-colors">
+                                {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                {expanded ? 'Ocultar desglose' : `Ver desglose (${h.items.length} artículo${h.items.length !== 1 ? 's' : ''})`}
+                            </button>
+                        )}
+                    </div>
+                </div>
+                <div className="text-right pl-14 sm:pl-0">
+                    <p className={`font-extrabold text-lg ${isStore ? 'text-[#1e3166]' : 'text-[#166534]'}`}>
+                        ${(h.displayAmount || h.amount || 0).toLocaleString()}
+                    </p>
+                </div>
+            </div>
+
+            {/* Expandable item breakdown */}
+            {expanded && hasItems && (
+                <div className="px-4 sm:px-6 pb-5 pt-0">
+                    <div className="ml-14 bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+                        <div className="px-4 py-2.5 bg-gradient-to-r from-[#1e3166] to-[#243d80] flex items-center gap-2">
+                            <Package className="w-3.5 h-3.5 text-white/70" />
+                            <span className="text-xs font-bold text-white/90">Desglose de artículos</span>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                            {h.items.map((item, idx) => (
+                                <div key={idx} className="px-4 py-3 flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        {item.image && <span className="text-lg shrink-0">{item.image}</span>}
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800 truncate">{item.name}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                {item.selectedSize && (
+                                                    <span className="text-[10px] font-medium text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                                                        Talla: {item.selectedSize}
+                                                    </span>
+                                                )}
+                                                <span className="text-[10px] text-gray-400">
+                                                    ${(item.price || 0).toLocaleString()} × {item.qty}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span className="font-bold text-sm text-[#1e3166] whitespace-nowrap">
+                                        ${((item.price || 0) * (item.qty || 1)).toLocaleString()}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="px-4 py-3 bg-gray-50 flex items-center justify-between border-t border-gray-200">
+                            <span className="text-xs font-bold text-gray-500">Total</span>
+                            <span className="font-extrabold text-[#166534]">
+                                ${(h.displayAmount || h.amount || 0).toLocaleString()} MXN
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
 
 // ── Main Portal ──
 export default function ParentPortal() {
@@ -452,38 +547,7 @@ export default function ParentPortal() {
                                         No hay movimientos registrados en línea para este alumno.
                                     </div>
                                 ) : history.map(h => (
-                                    <div key={h.id} className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                                        <div className="flex items-start gap-4">
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${h.type === 'store' ? 'bg-blue-100' : 'bg-green-100'}`}>
-                                                {h.type === 'store' ? (
-                                                    <ShoppingCart className="w-5 h-5 text-blue-600" />
-                                                ) : (
-                                                    <CheckCircle className="w-5 h-5 text-green-600" />
-                                                )}
-                                            </div>
-                                            <div>
-                                                <p className="font-bold text-gray-900 text-sm">{h.title || 'Pago'}</p>
-                                                <div className="flex items-center flex-wrap gap-2 mt-1 text-xs text-gray-500">
-                                                    <span>{fmtDate(h.date)}</span>
-                                                    <span>•</span>
-                                                    <span className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">Folio #{h.folio}</span>
-                                                    {h.type === 'store' && (
-                                                        <>
-                                                            <span>•</span>
-                                                            <span className="text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
-                                                                {h.status === 'delivered' ? 'Entregado' : 'Pendiente de entrega'}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="text-right pl-14 sm:pl-0">
-                                            <p className={`font-extrabold text-lg ${h.type === 'store' ? 'text-[#1e3166]' : 'text-[#166534]'}`}>
-                                                ${(h.displayAmount || h.amount || 0).toLocaleString()}
-                                            </p>
-                                        </div>
-                                    </div>
+                                    <HistoryRow key={h.id} h={h} />
                                 ))}
                             </div>
                         </div>

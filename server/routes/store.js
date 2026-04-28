@@ -44,10 +44,28 @@ router.post('/create-payment-intent', async (req, res) => {
     // Idempotency key to safely handle double clicks
     const idempotencyKey = `store-${studentId || 'anon'}-${totalCents}-${new Date().toISOString().slice(0, 13)}`
 
+    // Look up the student's email for the Stripe receipt
+    let receiptEmail = null
+    if (studentId) {
+        try {
+            const { default: prisma } = await import('../lib/prisma.js')
+            const student = await prisma.student.findUnique({
+                where: { id: studentId },
+                select: { email: true }
+            })
+            if (student?.email && !student.email.startsWith('pendiente@')) {
+                receiptEmail = student.email
+            }
+        } catch (e) {
+            console.warn('Could not fetch student email for receipt:', e.message)
+        }
+    }
+
     try {
         const paymentIntent = await stripe.paymentIntents.create({
             amount: totalCents,
             currency: 'mxn',
+            ...(receiptEmail && { receipt_email: receiptEmail }),
             metadata: {
                 type: 'store_purchase',
                 studentName,
