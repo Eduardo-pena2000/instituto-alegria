@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { randomUUID } from 'crypto'
 import Stripe from 'stripe'
 import prisma from '../lib/prisma.js'
-import { TUITION } from '../shared/tuition.js'
+import { getCurrentTuition } from '../shared/tuition.js'
 import { authenticateAdmin, authenticateAny } from '../middleware/auth.js'
 
 const router = Router()
@@ -91,6 +91,11 @@ router.post('/record', async (req, res) => {
       if (paymentIntent.metadata.concept !== 'Colegiatura mensual') {
         return res.status(400).json({ error: 'El pago proporcionado no es válido para colegiatura' })
       }
+
+      // Verify the payment belongs to this student
+      if (paymentIntent.metadata.studentId !== studentId) {
+        return res.status(400).json({ error: 'El pago no corresponde a este alumno' })
+      }
     } catch (stripeErr) {
       console.error('Stripe verification error:', stripeErr.message)
       return res.status(400).json({ error: 'No se pudo verificar el pago con Stripe' })
@@ -110,27 +115,35 @@ router.post('/record', async (req, res) => {
     }
 
     const today = new Date().toISOString().split('T')[0]
-    const folio = randomUUID().slice(0, 8).toUpperCase()
+    const folio = randomUUID().slice(0, 12).toUpperCase()
 
-    const payment = await prisma.payment.create({
-      data: {
-        studentId: student.id,
-        studentName: `${student.nombre} ${student.apellido}`,
-        nivel: student.nivel,
-        amount: TUITION[student.nivel] || 0,
-        date: today,
-        folio,
-        stripePaymentId: stripePaymentId || null,
-      },
-    })
-
-    // Update student's last payment date
-    await prisma.student.update({
-      where: { id: studentId },
-      data: { ultimoPago: today },
-    })
-
-    res.status(201).json(payment)
+    try {
+      const [payment] = await prisma.$transaction([
+        prisma.payment.create({
+          data: {
+            studentId: student.id,
+            studentName: `${student.nombre} ${student.apellido}`,
+            nivel: student.nivel,
+            amount: getCurrentTuition(student.nivel),
+            date: today,
+            folio,
+            stripePaymentId: stripePaymentId || null,
+          },
+        }),
+        // Update student's last payment date
+        prisma.student.update({
+          where: { id: studentId },
+          data: { ultimoPago: today },
+        })
+      ])
+      res.status(201).json(payment)
+    } catch (txErr) {
+      if (txErr.code === 'P2002') {
+        const existing = await prisma.payment.findFirst({ where: { stripePaymentId } })
+        if (existing) return res.json(existing)
+      }
+      throw txErr
+    }
   } catch (err) {
     console.error('Record payment error:', err)
     res.status(500).json({ error: 'Error al registrar pago' })
@@ -151,24 +164,25 @@ router.post('/admin-record', authenticateAdmin, async (req, res) => {
     }
 
     const today = new Date().toISOString().split('T')[0]
-    const folio = randomUUID().slice(0, 8).toUpperCase()
+    const folio = randomUUID().slice(0, 12).toUpperCase()
 
-    const payment = await prisma.payment.create({
-      data: {
-        studentId: student.id,
-        studentName: `${student.nombre} ${student.apellido}`,
-        nivel: student.nivel,
-        amount: TUITION[student.nivel] || 0,
-        date: today,
-        folio,
-        stripePaymentId: null,
-      },
-    })
-
-    await prisma.student.update({
-      where: { id: studentId },
-      data: { ultimoPago: today },
-    })
+    const [payment] = await prisma.$transaction([
+      prisma.payment.create({
+        data: {
+          studentId: student.id,
+          studentName: `${student.nombre} ${student.apellido}`,
+          nivel: student.nivel,
+          amount: getCurrentTuition(student.nivel),
+          date: today,
+          folio,
+          stripePaymentId: null, // manual payment
+        },
+      }),
+      prisma.student.update({
+        where: { id: studentId },
+        data: { ultimoPago: today },
+      })
+    ])
 
     res.status(201).json(payment)
   } catch (err) {

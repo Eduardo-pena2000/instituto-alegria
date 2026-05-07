@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma.js'
+import { authenticateAdmin } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -35,17 +36,20 @@ router.post('/admin/login', async (req, res) => {
 // POST /api/auth/parent/login
 router.post('/parent/login', async (req, res) => {
   try {
-    const { curp } = req.body
+    const { curp, pin } = req.body
     if (!curp || curp.length !== 18) {
       return res.status(400).json({ error: 'CURP inválido (debe ser de 18 caracteres)' })
+    }
+    if (!pin || pin.length < 4) {
+      return res.status(400).json({ error: 'PIN requerido (mínimo 4 caracteres)' })
     }
 
     const student = await prisma.student.findUnique({
       where: { curp: curp.toUpperCase() },
     })
 
-    if (!student) {
-      return res.status(404).json({ error: 'CURP no encontrado en el sistema' })
+    if (!student || student.pin !== pin) {
+      return res.status(401).json({ error: 'CURP o PIN incorrecto' })
     }
 
     const token = jwt.sign(
@@ -65,6 +69,32 @@ router.post('/parent/login', async (req, res) => {
     })
   } catch (err) {
     console.error('Parent login error:', err)
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+})
+
+// PUT /api/auth/admin/change-password
+router.put('/admin/change-password', authenticateAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 8 caracteres' })
+    }
+
+    const admin = await prisma.adminUser.findUnique({ where: { id: req.user.id } })
+    if (!admin || !(await bcrypt.compare(currentPassword, admin.passwordHash))) {
+      return res.status(401).json({ error: 'Contraseña actual incorrecta' })
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12)
+    await prisma.adminUser.update({
+      where: { id: admin.id },
+      data: { passwordHash: hash },
+    })
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('Change password error:', err)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

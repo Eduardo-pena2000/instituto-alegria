@@ -90,7 +90,7 @@ const faqs = [
   },
   {
     q: '¿Cuánto cuesta la inscripción?',
-    a: 'El costo de inscripción varía por nivel. Preescolar: $1,500 MXN, Primaria: $2,000 MXN, Secundaria: $2,500 MXN. Incluye materiales iniciales.',
+    a: 'El costo general de inscripción para cualquier nivel es de $2,500.00 MXN. Si pagas antes del 15 de febrero, obtienes un 20% de descuento pagando solo $2,000.00 MXN. Adicionalmente, existen cuotas anuales para material didáctico y asociación de padres.',
   },
   {
     q: '¿Se puede visitar la escuela antes de inscribirse?',
@@ -190,7 +190,60 @@ export default function Admissions() {
         </div>
       </section>
 
-      {/* Documents */}
+      {/* Costos y Fechas */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-10">
+            <h2 className="section-title">Costos y Fechas de Inscripción 2025-2026</h2>
+            <p className="section-subtitle">Conoce los costos y fechas importantes para asegurar el lugar de tu hijo(a).</p>
+          </div>
+          
+          <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded-r-2xl mb-12 max-w-4xl mx-auto">
+            <h3 className="font-bold text-blue-900 text-lg mb-2">Aviso Importante</h3>
+            <ul className="list-disc pl-5 text-blue-800 space-y-1 text-sm leading-relaxed">
+              <li>El período de inscripciones se llevará a cabo del <strong>1 al 15 de Febrero</strong>.</li>
+              <li>Aprovecha un <strong>20% de descuento</strong> en inscripción ($2,000.00 en lugar de $2,500.00) pagando a más tardar el <strong>15 de Febrero</strong>.</li>
+              <li>La fecha límite para reinscripciones es el <strong>28 de Febrero</strong>.</li>
+              <li><em>Si para esa fecha no se han realizado los trámites correspondientes, el lugar podrá ser ocupado por un alumno de nuevo ingreso.</em></li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {/* Preescolar */}
+            <div className="card p-8 border-t-4 border-pink-500">
+              <h3 className="text-2xl font-black text-gray-900 mb-6 text-center">Preescolar</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Inscripción</span><span className="font-bold text-gray-900">$2,500.00</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Colegiatura Mensual</span><span className="font-bold text-gray-900">$1,500.00</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Cuota Anual Padres</span><span className="font-bold text-gray-900">$1,000.00</span></div>
+                <div className="flex justify-between pb-2"><span className="text-gray-600">Mat. Didáctico Anual</span><span className="font-bold text-gray-900">$2,000.00</span></div>
+              </div>
+            </div>
+
+            {/* Primaria */}
+            <div className="card p-8 border-t-4 border-blue-500">
+              <h3 className="text-2xl font-black text-gray-900 mb-6 text-center">Primaria</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Inscripción</span><span className="font-bold text-gray-900">$2,500.00</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Colegiatura Mensual</span><span className="font-bold text-gray-900">$2,200.00</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Cuota Anual Padres</span><span className="font-bold text-gray-900">$1,000.00</span></div>
+                <div className="flex justify-between pb-2"><span className="text-gray-600">Mat. Didáctico Anual</span><span className="font-bold text-gray-900">$2,000.00</span></div>
+              </div>
+            </div>
+
+            {/* Secundaria */}
+            <div className="card p-8 border-t-4 border-emerald-500">
+              <h3 className="text-2xl font-black text-gray-900 mb-6 text-center">Secundaria</h3>
+              <div className="space-y-4">
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Inscripción</span><span className="font-bold text-gray-900">$2,500.00</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Colegiatura Mensual</span><span className="font-bold text-gray-900">$2,400.00</span></div>
+                <div className="flex justify-between border-b border-gray-100 pb-2"><span className="text-gray-600">Cuota Anual Padres</span><span className="font-bold text-gray-900">$1,000.00</span></div>
+                <div className="flex justify-between pb-2"><span className="text-gray-600">Mat. Didáctico Anual</span><span className="font-bold text-gray-900">$2,000.00</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       <section className="py-20 bg-gray-50">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">

@@ -33,7 +33,7 @@ const levels = [
       'Programa de adaptación gradual',
     ],
     schedule: '8:00 am – 1:00 pm',
-    tuition: '$1,800',
+    tuition: 'Desde $1,500',
   },
   {
     id: 'primaria',
@@ -67,7 +67,7 @@ const levels = [
       'Olimpiadas del conocimiento',
     ],
     schedule: '7:30 am – 2:00 pm',
-    tuition: '$2,200',
+    tuition: 'Desde $2,200',
   },
   {
     id: 'secundaria',
@@ -101,7 +101,7 @@ const levels = [
       'Participación en concursos nacionales',
     ],
     schedule: '7:30 am – 2:30 pm',
-    tuition: '$2,500',
+    tuition: 'Desde $2,400',
   },
 ]
 
@@ -211,7 +211,7 @@ export default function Levels() {
                     <Users className={`w-5 h-5 ${lvl.textColor}`} />
                     <div>
                       <p className="text-xs text-gray-500">Colegiatura mensual</p>
-                      <p className="font-semibold text-gray-800 text-sm">{lvl.tuition} MXN</p>
+                      <p className="font-semibold text-gray-800 text-sm">{lvl.tuition} MXN*</p>
                     </div>
                   </div>
                 </div>
@@ -227,6 +227,9 @@ export default function Levels() {
               </div>
             </div>
           ))}
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 text-center text-sm text-gray-500">
+          * Los precios indicados corresponden al pago puntual (días 1 al 10 de cada mes). Aplican recargos por pagos posteriores.
         </div>
       </section>
 

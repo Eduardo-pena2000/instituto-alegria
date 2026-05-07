@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { API_URL } from '../config'
 import { getTuitionStatus, fmtDate } from '../utils/helpers'
-import { TUITION } from '../utils/constants'
+import { getCurrentTuition } from '../utils/constants'
 import { REQUISITOS } from '../utils/requisitosData'
 import SchoolStore from '../components/SchoolStore'
 
@@ -45,6 +45,7 @@ function clearParentSession() {
 // ── Login ──
 function ParentLogin({ onLogin }) {
     const [curp, setCurp] = useState('')
+    const [pin, setPin] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
 
@@ -56,7 +57,7 @@ function ParentLogin({ onLogin }) {
             const res = await fetch(`${API_URL}/api/auth/parent/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ curp }),
+                body: JSON.stringify({ curp, pin }),
             })
             if (!res.ok) {
                 const data = await res.json()
@@ -117,6 +118,24 @@ function ParentLogin({ onLogin }) {
                             </div>
                         </div>
 
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                                PIN de Acceso
+                            </label>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-[#1e3166] transition-colors" />
+                                <input
+                                    type="password"
+                                    value={pin}
+                                    onChange={e => { setPin(e.target.value); setError('') }}
+                                    placeholder="Ingresa tu PIN de 4 dígitos"
+                                    maxLength={4}
+                                    required
+                                    className="w-full pl-12 pr-4 py-4 rounded-xl bg-gray-50 border-2 border-gray-100 focus:border-[#1e3166] focus:bg-white text-base font-mono font-medium text-gray-800 outline-none transition-all placeholder:text-gray-300 placeholder:font-sans tracking-wider"
+                                />
+                            </div>
+                        </div>
+
                         {error && (
                             <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600">
                                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -161,7 +180,7 @@ function RequisitosSection({ nivel }) {
                     <BookOpen className="w-4 h-4" /> Requisitos del Ciclo Escolar 2025-2026
                 </h3>
                 <p className="text-sm text-gray-500 mt-2">
-                    Lista de uniformes y materiales para <strong>{TUITION[nivel]?.label}</strong>
+                    Lista de uniformes y materiales para <strong>{getCurrentTuition(nivel).label}</strong>
                 </p>
             </div>
 
@@ -405,7 +424,7 @@ export default function ParentPortal() {
     if (!student) return <ParentLogin onLogin={handleLogin} />
 
     const st = getTuitionStatus(student.ultimoPago)
-    const tuition = TUITION[student.nivel]
+    const tuition = getCurrentTuition(student.nivel)
     const venc = new Date(student.ultimoPago)
     venc.setDate(venc.getDate() + 30)
 
@@ -490,6 +509,11 @@ export default function ParentPortal() {
                                             st.label === 'POR VENCER' ? 'text-amber-700' : 'text-red-700'
                                             }`}>
                                             El pago mensual de <strong>{tuition?.display}</strong> cubre hasta el <strong>{fmtDate(venc.toISOString().split('T')[0])}</strong>.
+                                            {tuition?.isLate && (
+                                                <p className="mt-2 text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                                                    <strong>Nota:</strong> Este monto incluye recargo por pago extemporáneo (después del día 10).
+                                                </p>
+                                            )}
                                         </p>
                                     </div>
                                 </div>

@@ -2,15 +2,26 @@
  * Fuente única de verdad para los montos de colegiatura.
  * Se usa en rutas, servicios y webhook.
  */
-export const TUITION = {
-    preescolar: 1800,
-    primaria: 2200,
-    secundaria: 2500,
+/**
+ * Fuente única de verdad para los montos de colegiatura.
+ * Se usa en rutas, servicios y webhook.
+ */
+
+const BASE_RATES = {
+    preescolar: { normal: 1500, late1: 1650, late2: 1800 },
+    primaria: { normal: 2200, late1: 2350, late2: 2500 },
+    secundaria: { normal: 2400, late1: 2550, late2: 2700 },
 }
 
-/** Montos en centavos (para Stripe) */
-export const TUITION_CENTS = {
-    preescolar: 180000,
-    primaria: 220000,
-    secundaria: 250000,
+export function getCurrentTuition(level) {
+    const day = new Date().getDate()
+    const rates = BASE_RATES[level] || BASE_RATES.primaria // fallback
+
+    if (day >= 1 && day <= 10) return rates.normal
+    if (day >= 11 && day <= 20) return rates.late1
+    return rates.late2
+}
+
+export function getCurrentTuitionCents(level) {
+    return getCurrentTuition(level) * 100
 }

@@ -1,9 +1,33 @@
 /* ─── Shared Constants ─────────────────────────────────── */
 
-export const TUITION = {
-    preescolar: { label: 'Preescolar', amount: 1800, display: '$1,800.00 MXN' },
-    primaria: { label: 'Primaria', amount: 2200, display: '$2,200.00 MXN' },
-    secundaria: { label: 'Secundaria', amount: 2500, display: '$2,500.00 MXN' },
+const BASE_RATES = {
+    preescolar: { normal: 1500, late1: 1650, late2: 1800, label: 'Preescolar' },
+    primaria: { normal: 2200, late1: 2350, late2: 2500, label: 'Primaria' },
+    secundaria: { normal: 2400, late1: 2550, late2: 2700, label: 'Secundaria' },
+}
+
+export function getCurrentTuition(level) {
+    const day = new Date().getDate()
+    const rates = BASE_RATES[level] || BASE_RATES.primaria // fallback
+
+    let amount = rates.normal
+    let isLate = false
+
+    if (day > 10 && day <= 20) {
+        amount = rates.late1
+        isLate = true
+    } else if (day > 20) {
+        amount = rates.late2
+        isLate = true
+    }
+
+    return {
+        label: rates.label,
+        amount,
+        display: `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} MXN`,
+        isLate,
+        original: rates.normal,
+    }
 }
 
 export const NIVEL_LABELS = {

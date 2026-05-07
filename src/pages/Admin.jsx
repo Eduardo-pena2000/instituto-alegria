@@ -9,14 +9,14 @@ import {
 import { getToken, setToken, clearToken, apiFetch } from '../utils/auth'
 import { API_URL } from '../config'
 import { getTuitionStatus, fmtDate } from '../utils/helpers'
-import { TUITION, NIVEL_LABELS, NIVEL_COLORS } from '../utils/constants'
+import { getCurrentTuition, NIVEL_LABELS, NIVEL_COLORS } from '../utils/constants'
 
 /* ─── Local Constants ─────────────────────────────────── */
 
 const EMPTY_FORM = {
   matricula: '', nombre: '', apellido: '', nivel: 'primaria', grado: '', grupo: 'A',
   fechaNacimiento: '', curp: '', nombrePadre: '', nombreMadre: '',
-  telefono: '', email: '', direccion: '',
+  telefono: '', email: '', direccion: '', pin: '1234',
   fechaInscripcion: new Date().toISOString().split('T')[0],
   ultimoPago: new Date().toISOString().split('T')[0],
 }
@@ -36,7 +36,7 @@ function exportCSV(students) {
 
 function sendWhatsApp(student) {
   const st = getTuitionStatus(student.ultimoPago)
-  const amount = TUITION[student.nivel]?.amount || 0
+  const amount = getCurrentTuition(student.nivel).amount
   const phone = student.telefono.replace(/\D/g, '')
   const msg = `Estimado(a) padre/madre de familia,%0A%0ALe informamos que la colegiatura de *${student.nombre} ${student.apellido}* (${student.nivel} ${student.grado}) se encuentra *${st.label}*.%0A%0AMonto: *$${amount.toLocaleString()} MXN*%0AÚltimo pago: ${fmtDate(student.ultimoPago)}%0A%0APuede realizar su pago en línea en nuestra página web.%0A%0AInstituto Educativo Alegría 📚`
   window.open(`https://wa.me/52${phone}?text=${msg}`, '_blank', 'noopener,noreferrer')
@@ -248,8 +248,9 @@ function StudentModal({ student, onSave, onClose }) {
               <Field label="Teléfono" name="telefono" placeholder="(55) 1234-5678" required />
               <Field label="Correo electrónico" name="email" type="email" placeholder="correo@email.com" />
             </div>
-            <div className="mt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
               <Field label="Dirección" name="direccion" placeholder="Calle, número, colonia" />
+              <Field label="PIN de Acceso (Portal)" name="pin" placeholder="1234" required />
             </div>
           </div>
 
@@ -318,6 +319,7 @@ function DetailModal({ student, onClose, onEdit, onPay }) {
             <div className="col-span-2">
               <Section title="Dirección" value={student.direccion} />
             </div>
+            <Section title="PIN de Acceso" value={student.pin} />
             <Section title="Fecha de inscripción" value={fmtDate(student.fechaInscripcion)} />
             <Section title="Último pago" value={fmtDate(student.ultimoPago)} />
           </div>
@@ -382,6 +384,63 @@ function Toast({ message, type = 'success' }) {
   )
 }
 
+/* ─── Change Password Modal ─────────────────────────────────────────── */
+function ChangePasswordModal({ onClose, showToast }) {
+  const [current, setCurrent] = useState('')
+  const [newPass, setNewPass] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (newPass.length < 8) return showToast('La nueva contraseña debe tener al menos 8 caracteres', 'error')
+    setLoading(true)
+    try {
+      const res = await apiFetch('/api/auth/admin/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({ currentPassword: current, newPassword: newPass }),
+      })
+      if (res.ok) {
+        showToast('Contraseña actualizada correctamente')
+        onClose()
+      } else {
+        const data = await res.json()
+        showToast(data.error || 'Error al cambiar contraseña', 'error')
+      }
+    } catch {
+      showToast('Error de conexión', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">Cambiar Contraseña</h2>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Contraseña Actual</label>
+            <input type="password" value={current} onChange={e => setCurrent(e.target.value)} required
+              className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:border-[#1e3166] text-sm outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Nueva Contraseña</label>
+            <input type="password" value={newPass} onChange={e => setNewPass(e.target.value)} required minLength={8}
+              className="w-full px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-200 focus:border-[#1e3166] text-sm outline-none" />
+          </div>
+          <button type="submit" disabled={loading}
+            className="w-full py-2.5 rounded-xl text-white font-bold text-sm bg-[#1e3166] hover:bg-[#162550] transition-colors">
+            {loading ? 'Guardando...' : 'Actualizar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 /* ─── Panel principal ─────────────────────────────────────────── */
 export default function Admin() {
   const [auth, setAuth] = useState(() => !!getToken())
@@ -398,6 +457,7 @@ export default function Admin() {
   const [modalEdit, setModalEdit] = useState(null)
   const [modalDetail, setModalDetail] = useState(null)
   const [modalDelete, setModalDelete] = useState(null)
+  const [modalPassword, setModalPassword] = useState(false)
   const [toast, setToast] = useState(null)
   const [dark, setDark] = useState(false)
   const [tab, setTab] = useState('alumnos') // alumnos | reportes | calendario | notificaciones
@@ -608,6 +668,9 @@ export default function Admin() {
             {/* Dark mode */}
             <button onClick={() => setDark(!dark)} className="p-2 text-blue-200/70 hover:text-white hover:bg-white/10 rounded-lg transition-all" title={dark ? 'Modo claro' : 'Modo oscuro'}>
               {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setModalPassword(true)} className="p-2 text-blue-200/70 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Cambiar contraseña">
+              <Lock className="w-4 h-4" />
             </button>
             {/* Export CSV */}
             <button onClick={() => { exportCSV(students); showToast('Archivo CSV descargado') }} className="hidden sm:flex items-center gap-1.5 text-blue-200/70 hover:text-white hover:bg-white/10 px-2.5 py-2 rounded-lg transition-all text-xs font-medium">
@@ -916,14 +979,14 @@ export default function Admin() {
                     return (
                       <div key={n} className="flex justify-between items-center">
                         <span className={`text-sm capitalize ${dark ? 'text-gray-300' : 'text-gray-600'}`}>{n} ({count})</span>
-                        <span className={`font-bold text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>${((TUITION[n]?.amount || 0) * count).toLocaleString()}</span>
+                        <span className={`font-bold text-sm ${dark ? 'text-white' : 'text-gray-900'}`}>${(getCurrentTuition(n).amount * count).toLocaleString()}</span>
                       </div>
                     )
                   })}
                   <hr className={dark ? 'border-gray-700' : 'border-gray-100'} />
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-sm text-[#166534]">Total mensual</span>
-                    <span className="font-extrabold text-lg text-[#166534]">${students.reduce((s, st) => s + (TUITION[st.nivel]?.amount || 0), 0).toLocaleString()}</span>
+                    <span className="font-extrabold text-lg text-[#166534]">${students.reduce((s, st) => s + getCurrentTuition(st.nivel).amount, 0).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -1118,6 +1181,7 @@ export default function Admin() {
           onClose={() => setModalDelete(null)}
         />
       )}
+      {modalPassword && <ChangePasswordModal onClose={() => setModalPassword(false)} showToast={showToast} />}
       {toast && <Toast message={toast.msg} type={toast.type} />}
     </div>
   )

@@ -123,6 +123,11 @@ router.post('/record-order', async (req, res) => {
             if (paymentIntent.amount !== totalCents) {
                 return res.status(400).json({ error: 'El monto del pago no coincide con el total del pedido' })
             }
+
+            // Verify the payment belongs to this student
+            if (paymentIntent.metadata.studentId !== (studentId || '')) {
+                return res.status(400).json({ error: 'El pago no corresponde a este alumno' })
+            }
         } catch (stripeErr) {
             console.error('Stripe verification error:', stripeErr.message)
             return res.status(400).json({ error: 'No se pudo verificar el pago con Stripe' })

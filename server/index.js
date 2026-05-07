@@ -13,7 +13,7 @@ import Stripe from 'stripe'
 import { config } from 'dotenv'
 import { z } from 'zod'
 import prisma from './lib/prisma.js'
-import { TUITION_CENTS } from './shared/tuition.js'
+import { getCurrentTuitionCents } from './shared/tuition.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -105,6 +105,14 @@ const searchLimiter = rateLimit({
   message: { error: 'Demasiadas búsquedas. Intenta de nuevo en un minuto.' },
 })
 
+const contactLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados mensajes enviados. Intenta de nuevo más tarde.' },
+})
+
 // ── Webhook route FIRST (needs raw body, before express.json) ──
 
 app.post('/api/webhook', express.raw({ type: 'application/json' }), (req, res) => {
@@ -151,15 +159,15 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), (req, res) =
             }
 
             const today = new Date().toISOString().split('T')[0]
-            await Promise.all([
+            await prisma.$transaction([
               prisma.payment.create({
                 data: {
                   studentId: student.id,
                   studentName: `${student.nombre} ${student.apellido}`,
                   nivel: student.nivel,
-                  amount: intent.amount / 100,
+                  amount: Math.round(intent.amount / 100),
                   date: today,
-                  folio: randomUUID().slice(0, 8).toUpperCase(),
+                  folio: randomUUID().slice(0, 12).toUpperCase(),
                   stripePaymentId: intent.id,
                 },
               }),
@@ -170,7 +178,13 @@ app.post('/api/webhook', express.raw({ type: 'application/json' }), (req, res) =
             ])
             console.log(`Webhook: Pago de colegiatura registrado exitosamente`)
           })
-          .catch(err => console.error('Webhook DB error:', err))
+          .catch(err => {
+            if (err.code === 'P2002') {
+              console.log(`Webhook: Pago de colegiatura duplicado evitado por restricción única (stripePaymentId: ${intent.id})`)
+            } else {
+              console.error('Webhook DB error:', err)
+            }
+          })
       }
     } else if (intent.metadata.type === 'store_purchase') {
        // We can optionally handle store purchases here in the future if needed,
@@ -199,6 +213,7 @@ app.use('/api/', (req, res, next) => {
 // ── Rate limiters ──────────────────────────────────────────
 app.use('/api/auth/', authLimiter)
 app.use('/api/students/search', searchLimiter)
+app.use('/api/contact/', contactLimiter)
 app.use('/api/', apiLimiter)
 
 // ── Routes ─────────────────────────────────────────────────
@@ -228,24 +243,32 @@ app.post('/api/create-payment-intent', async (req, res) => {
     return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
   }
 
-  const { level, studentName, grade, parentEmail, studentId } = parsed.data
-
-    // Generate an idempotency key to prevent double charges if the user double-clicks
-    const idempotencyKey = `${studentId}-${TUITION_CENTS[level]}-${new Date().toISOString().slice(0, 13)}`
+  const { studentName, grade, parentEmail, studentId } = parsed.data
 
   try {
+    const student = await prisma.student.findUnique({ where: { id: studentId } })
+    if (!student) {
+      return res.status(404).json({ error: 'Alumno no encontrado' })
+    }
+
+    const realLevel = student.nivel
+
+    // Generate an idempotency key to prevent double charges if the user double-clicks
+    const cents = getCurrentTuitionCents(realLevel)
+    const idempotencyKey = `${studentId}-${cents}-${new Date().toISOString().slice(0, 13)}`
+
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: TUITION_CENTS[level],
+      amount: cents,
       currency: 'mxn',
       metadata: {
         studentName,
         grade,
-        level,
+        level: realLevel,
         studentId,
         concept: 'Colegiatura mensual',
       },
       receipt_email: parentEmail || undefined,
-      description: `Colegiatura mensual — ${studentName} — ${grade} (${level})`,
+      description: `Colegiatura mensual — ${studentName} — ${grade} (${realLevel})`,
     }, {
       idempotencyKey
     })

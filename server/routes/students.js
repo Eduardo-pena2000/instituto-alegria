@@ -21,6 +21,7 @@ const StudentSchema = z.object({
   direccion: z.string().min(1).max(300),
   fechaInscripcion: z.string().min(1),
   ultimoPago: z.string().optional().nullable(),
+  pin: z.string().length(4).optional().default('1234'),
 })
 
 // GET /api/students — admin only, returns full PII

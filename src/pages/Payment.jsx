@@ -10,7 +10,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js'
 import { API_URL, STRIPE_PK } from '../config'
 import { getTuitionStatus, fmtDate } from '../utils/helpers'
-import { TUITION, NIVEL_COLORS } from '../utils/constants'
+import { getCurrentTuition, NIVEL_COLORS } from '../utils/constants'
 
 const stripePromise = STRIPE_PK ? loadStripe(STRIPE_PK) : null
 
@@ -49,8 +49,9 @@ function CheckoutForm({ selected, tuition, onSuccess, onBack }) {
       setProcessing(false)
     } else if (paymentIntent && paymentIntent.status === 'succeeded') {
       // Record payment in our database
+      let realFolio = 'PENDIENTE'
       try {
-        await fetch(`${API_URL}/api/payments/record`, {
+        const res = await fetch(`${API_URL}/api/payments/record`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -58,10 +59,14 @@ function CheckoutForm({ selected, tuition, onSuccess, onBack }) {
             stripePaymentId: paymentIntent.id,
           }),
         })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.folio) realFolio = data.folio
+        }
       } catch {
         // Payment succeeded in Stripe, webhook will handle if this fails
       }
-      onSuccess(paymentIntent.id)
+      onSuccess(paymentIntent.id, realFolio)
     }
   }
 
@@ -221,10 +226,9 @@ export default function Payment() {
     }
   }
 
-  const handlePaymentSuccess = (stripePaymentId) => {
-    const newFolio = crypto.randomUUID().slice(0, 8).toUpperCase()
+  const handlePaymentSuccess = (stripePaymentId, realFolio) => {
     setSelected(prev => ({ ...prev, ultimoPago: new Date().toISOString().split('T')[0] }))
-    setFolio(newFolio)
+    setFolio(realFolio || 'PENDIENTE')
     setClientSecret(null)
     setStep(6)
   }
@@ -239,7 +243,7 @@ export default function Payment() {
   }
 
   const status = selected ? getTuitionStatus(selected.ultimoPago) : null
-  const tuition = selected ? TUITION[selected.nivel] : null
+  const tuition = selected ? getCurrentTuition(selected.nivel) : null
 
   const visibleSteps = [
     { n: 1, label: 'Buscar' },
@@ -343,7 +347,7 @@ export default function Payment() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-900 text-sm">{s.nombre} {s.apellido}</p>
-                            <p className="text-xs text-gray-400">{TUITION[s.nivel]?.label} · {s.grado} "{s.grupo}"</p>
+                            <p className="text-xs text-gray-400">{getCurrentTuition(s.nivel).label} · {s.grado} "{s.grupo}"</p>
                           </div>
                           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full ${st.color}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
@@ -402,7 +406,7 @@ export default function Payment() {
                 <div>
                   <p className="font-bold text-gray-900">{selected.nombre} {selected.apellido}</p>
                   <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-semibold ${NIVEL_COLORS[selected.nivel]}`}>
-                    {TUITION[selected.nivel]?.label} · {selected.grado} "{selected.grupo}"
+                    {getCurrentTuition(selected.nivel).label} · {selected.grado} "{selected.grupo}"
                   </span>
                 </div>
               </div>
@@ -459,7 +463,7 @@ export default function Payment() {
                   </div>
                   <div>
                     <h2 className="text-xl font-extrabold text-white">{selected.nombre} {selected.apellido}</h2>
-                    <p className="text-blue-200/70 text-sm font-medium">{TUITION[selected.nivel]?.label} · {selected.grado} "{selected.grupo}"</p>
+                    <p className="text-blue-200/70 text-sm font-medium">{getCurrentTuition(selected.nivel).label} · {selected.grado} "{selected.grupo}"</p>
                   </div>
                 </div>
               </div>
@@ -555,7 +559,7 @@ export default function Payment() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Nivel</span>
-                      <span className="font-medium text-gray-800">{TUITION[selected.nivel]?.label}</span>
+                      <span className="font-medium text-gray-800">{getCurrentTuition(selected.nivel).label}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Grado</span>
@@ -570,6 +574,11 @@ export default function Payment() {
                       <span className="font-bold text-gray-900">Total a pagar</span>
                       <span className="text-2xl font-extrabold text-[#166534]">{tuition?.display}</span>
                     </div>
+                    {tuition?.isLate && (
+                      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+                        <strong>Nota:</strong> Se ha aplicado un recargo por pago extemporáneo (después del día 10).
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -635,7 +644,7 @@ export default function Payment() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Nivel / Grado</span>
-                <span className="font-medium text-gray-800">{TUITION[selected.nivel]?.label} · {selected.grado}</span>
+                <span className="font-medium text-gray-800">{getCurrentTuition(selected.nivel).label} · {selected.grado}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-400">Monto pagado</span>
