@@ -1,5 +1,5 @@
 import twilio from 'twilio'
-import { TUITION } from '../shared/tuition.js'
+import { getCurrentTuition } from '../shared/tuition.js'
 import { fmtDate } from '../shared/helpers.js'
 
 let client = null
@@ -15,7 +15,7 @@ function getClient() {
 }
 
 function buildMessage(student, status) {
-  const amount = TUITION[student.nivel] || 0
+  const amount = getCurrentTuition(student.nivel) || 0
   const urgency = status.type === 'vencida'
     ? 'se encuentra *VENCIDA*'
     : 'está *POR VENCER*'
