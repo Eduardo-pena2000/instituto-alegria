@@ -6,7 +6,7 @@ import { getCurrentTuition } from '../shared/tuition.js'
 import { authenticateAdmin, authenticateAny } from '../middleware/auth.js'
 
 const router = Router()
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
 // GET /api/payments — admin only
 router.get('/', authenticateAdmin, async (req, res) => {
@@ -72,6 +72,9 @@ router.get('/student/:studentId', authenticateAny, async (req, res) => {
 // POST /api/payments/record — called after successful Stripe payment
 router.post('/record', async (req, res) => {
   try {
+    if (!stripe) {
+      return res.status(503).json({ error: 'Stripe no está configurado' })
+    }
     const { studentId, stripePaymentId } = req.body
     if (!studentId) {
       return res.status(400).json({ error: 'studentId es requerido' })

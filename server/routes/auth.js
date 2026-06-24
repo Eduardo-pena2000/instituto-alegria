@@ -48,7 +48,12 @@ router.post('/parent/login', async (req, res) => {
       where: { curp: curp.toUpperCase() },
     })
 
-    if (!student || student.pin !== pin) {
+    if (!student) {
+      return res.status(401).json({ error: 'CURP o PIN incorrecto' })
+    }
+
+    const pinValid = await bcrypt.compare(pin, student.pin)
+    if (!pinValid) {
       return res.status(401).json({ error: 'CURP o PIN incorrecto' })
     }
 
@@ -95,6 +100,39 @@ router.put('/admin/change-password', authenticateAdmin, async (req, res) => {
     res.json({ success: true })
   } catch (err) {
     console.error('Change password error:', err)
+    res.status(500).json({ error: 'Error interno del servidor' })
+  }
+})
+
+// PUT /api/auth/parent/change-pin
+router.put('/parent/change-pin', async (req, res) => {
+  try {
+    const { curp, currentPin, newPin } = req.body
+    if (!curp || !currentPin || !newPin || newPin.length < 4) {
+      return res.status(400).json({ error: 'El nuevo PIN debe tener al menos 4 caracteres' })
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { curp: curp.toUpperCase() },
+    })
+    if (!student) {
+      return res.status(404).json({ error: 'Alumno no encontrado' })
+    }
+
+    const pinValid = await bcrypt.compare(currentPin, student.pin)
+    if (!pinValid) {
+      return res.status(401).json({ error: 'PIN actual incorrecto' })
+    }
+
+    const hashedPin = await bcrypt.hash(newPin, 10)
+    await prisma.student.update({
+      where: { id: student.id },
+      data: { pin: hashedPin },
+    })
+
+    res.json({ success: true })
+  } catch (err) {
+    console.error('Change pin error:', err)
     res.status(500).json({ error: 'Error interno del servidor' })
   }
 })

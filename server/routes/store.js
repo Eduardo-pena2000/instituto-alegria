@@ -100,6 +100,9 @@ router.post('/create-payment-intent', async (req, res) => {
 // POST /api/store/record-order
 router.post('/record-order', async (req, res) => {
     try {
+        if (!stripe) {
+            return res.status(503).json({ error: 'Stripe no está configurado' })
+        }
         const { studentId, items, totalCents, stripePaymentId } = req.body
 
         if (!studentId || !items || !totalCents || !stripePaymentId) {

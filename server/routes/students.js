@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { z } from 'zod'
+import bcrypt from 'bcryptjs'
 import prisma from '../lib/prisma.js'
 import { authenticateAdmin, authenticateAny } from '../middleware/auth.js'
 
@@ -97,7 +98,11 @@ router.post('/', authenticateAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
     }
 
-    const student = await prisma.student.create({ data: parsed.data })
+    // Hash the PIN before storing
+    const data = { ...parsed.data }
+    data.pin = await bcrypt.hash(data.pin, 10)
+
+    const student = await prisma.student.create({ data })
     res.status(201).json(student)
   } catch (err) {
     if (err.code === 'P2002') {
@@ -117,9 +122,15 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.flatten() })
     }
 
+    // Hash the PIN if it's being updated
+    const data = { ...parsed.data }
+    if (data.pin) {
+      data.pin = await bcrypt.hash(data.pin, 10)
+    }
+
     const student = await prisma.student.update({
       where: { id: req.params.id },
-      data: parsed.data,
+      data,
     })
     res.json(student)
   } catch (err) {

@@ -29,23 +29,29 @@ async function main() {
   console.log('Seeding database...')
 
   // Create admin user with hashed password
-  const hash = await bcrypt.hash('alegria2025', 12)
+  const adminPassword = process.env.ADMIN_DEFAULT_PASSWORD
+  if (!adminPassword) {
+    console.error('FATAL: ADMIN_DEFAULT_PASSWORD environment variable is required for seeding')
+    process.exit(1)
+  }
+  const hash = await bcrypt.hash(adminPassword, 12)
   await prisma.adminUser.upsert({
     where: { username: 'admin' },
     update: { passwordHash: hash },
     create: { username: 'admin', passwordHash: hash },
   })
-  console.log('Admin user created (admin / alegria2025)')
+  console.log('Admin user created (admin / [password from env])')
 
-  // Seed students
+  // Seed students — hash PINs before storing
+  const defaultPinHash = await bcrypt.hash('1234', 10)
   for (const s of STUDENTS) {
     await prisma.student.upsert({
       where: { curp: s.curp },
       update: {},
-      create: s,
+      create: { ...s, pin: defaultPinHash },
     })
   }
-  console.log(`${STUDENTS.length} students seeded`)
+  console.log(`${STUDENTS.length} students seeded (PINs hashed)`)
 }
 
 main()
