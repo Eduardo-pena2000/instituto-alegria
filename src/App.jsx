@@ -26,6 +26,16 @@ export default function App() {
   const location = useLocation()
   const isHiddenNav = location.pathname === '/admin' || location.pathname === '/portal'
 
+  // Security feature: Clear session tokens if the user navigates away from protected areas
+  useEffect(() => {
+    if (location.pathname !== '/admin') {
+      sessionStorage.removeItem('iea_auth')
+    }
+    if (location.pathname !== '/portal') {
+      sessionStorage.removeItem('iea_parent_auth')
+    }
+  }, [location.pathname])
+
   return (
     <ErrorBoundary>
       <ScrollToTop />

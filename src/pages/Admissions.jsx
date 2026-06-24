@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import SEO from '../components/SEO'
 import { Link } from 'react-router-dom'
+import { API_URL } from '../config'
 import {
   CheckCircle, FileText, Calendar, Users, Phone,
   Mail, ArrowRight, ChevronDown, ChevronUp, Download
@@ -118,7 +119,6 @@ export default function Admissions() {
     e.preventDefault()
     setSending(true)
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
       await fetch(`${API_URL}/api/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

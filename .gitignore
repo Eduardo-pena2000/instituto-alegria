@@ -4,3 +4,7 @@ dist/
 server/.env
 .env.local
 *.log
+
+# PII and scratch data files — never commit these
+server/parsed.json
+server/scratch_*.js
